@@ -5,6 +5,8 @@
 `define OPCODE_JMP        7'b1101111
 `define OPCODE_JMP_LINK   7'b1100111
 `define OPCODE_STORE      7'b0100011 
+`define OPCODE_LUI       7'b0110111
+`define OPCODE_AUIPC     7'b0010111
 `define FUNC_ADD      3'b000
 `define AUX_FUNC_ADD  7'b0000000
 `define AUX_FUNC_SUB  7'b0100000
@@ -22,13 +24,14 @@
 `define ASel_PC 1'b1
 `define BSel_Reg 1'b0
 `define BSel_IMM 1'b1
-`define MemRW_Read 1'b0
-`define MemRW_Write 1'b1
-`define RWrEn_Disable 1'b0
-`define RWrEn_Enable 1'b1
+`define MemRW_Write 1'b0
+`define MemRW_Read 1'b1
+`define RWrEn_Enable 1'b0
+`define RWrEn_Disable 1'b1
 `define WBSel_ALU 2'b00
 `define WBSel_PC4 2'b01
 `define WBSel_Mem 2'b10
+`define WBSel_Imm 2'b11
 `define BEQ 3'b000
 `define BNE 3'b001
 `define BLT 3'b100
@@ -49,7 +52,7 @@ module SingleCycleCPU(halt, clk, rst);
    wire        MemWrEn;
    
    wire [4:0]  Rsrc1, Rsrc2, Rdst;
-   wire [31:0] Rdata1, Rdata2, RWrdata;
+   wire [31:0] Rdata1, Rdata2;
 
    wire BrEq, BrLT, PCSel, ASel, BSel, MemRW, RWrEn;
    wire [2:0] ImmSel;
@@ -58,18 +61,28 @@ module SingleCycleCPU(halt, clk, rst);
    wire [6:0]  opcode;
    wire [6:0]  funct7;
    wire [2:0]  funct3;
-   
+
    // ALU Inputs
+   wire [31:0] ALUOutput;
    wire [31:0] ALU_A;
    wire [31:0] ALU_B;
 
+   wire [31:0] RWrData;
+
+   wire [31:0] LoadExtended;
+
+   SizeModule SM(.funct3(funct3),
+                .DataWord(DataWord),
+                .MemSize(MemSize),
+                .LoadExtended(LoadExtended)
+                );
    // System State (everything is neg assert)
    InstMem IMEM(.Addr(PC), .Size(`SIZE_WORD), .DataOut(InstWord), .CLK(clk));
-   DataMem DMEM(.Addr(DataAddr), .Size(MemSize), .DataIn(StoreData), .DataOut(DataWord), .WEN(MemWrEn), .CLK(clk));
+   DataMem DMEM(.Addr(ALUOutput), .Size(MemSize), .DataIn(Rdata2), .DataOut(DataWord), .WEN(MemRW), .CLK(clk));
 
    RegFile RF(.AddrA(Rsrc1), .DataOutA(Rdata1), 
           .AddrB(Rsrc2), .DataOutB(Rdata2), 
-          .AddrW(Rdst), .DataInW(RWrdata), .WenW(RWrEn), .CLK(clk));
+          .AddrW(Rdst), .DataInW(RWrData), .WenW(RWrEn), .CLK(clk));
 
    Reg PC_REG(.Din(NPC), .Qout(PC), .WEN(1'b0), .CLK(clk), .RST(rst));
 
@@ -83,19 +96,15 @@ module SingleCycleCPU(halt, clk, rst);
 
    assign ALU_A = (ASel == 1'b0) ? Rdata1 : PC; 
    assign ALU_B = (BSel == 1'b0) ? Rdata2 : Imm;
-   ExecutionUnit EU(.out(RWrdata), .opA(ALU_A), .opB(ALU_B), .func(funct3), .auxFunc(funct7), .opcode(opcode));
+   ExecutionUnit EU(.out(ALUOutput), .opA(ALU_A), .opB(ALU_B), .func(funct3), .auxFunc(funct7), .opcode(opcode));
 
 
    // Write Back signal generation
-   
-   assign StoreData = (WBSel == `WBSel_ALU) ? RWrdata : (WBSel == `WBSel_PC4) ? PC + 4 : DataWord;
+   assign RWrData = (WBSel == `WBSel_ALU) ? ALUOutput : (WBSel == `WBSel_PC4) ? PC + 4 : (WBSel == `WBSel_Mem) ? LoadExtended : Imm;
 
    // Immediate generation
    wire [31:0] Imm;
-   ImmGen IG(.InstWord(InstWord), .ImmSel(ImmSel), .Imm(Imm));
-
-   
-   
+   ImmGen IG(.InstWord(InstWord), .ImmSel(ImmSel), .Imm(Imm));   
 
    // Branch Comparison TODO: support unsigned
    wire BR;
@@ -106,7 +115,7 @@ module SingleCycleCPU(halt, clk, rst);
     .BR(BR)
     );
    // Fetch Address Datapath
-   PCUpdate PCU(.PCSel(PCSel), .PC(PC), .PC_Jump(RWrdata), .NPC(NPC)); 
+   PCUpdate PCU(.PCSel(PCSel), .PC(PC), .PC_Jump(ALUOutput), .NPC(NPC)); 
    
    // Opcode decoder
    OpDecoder OD(.op(opcode),
@@ -121,6 +130,31 @@ module SingleCycleCPU(halt, clk, rst);
     .RWrEn(RWrEn), 
     .WBSel(WBSel));
 endmodule // SingleCycleCPU
+
+module SizeModule(input [2:0] funct3,
+                input [31:0] DataWord,
+                output reg [1:0] MemSize,
+                output reg [31:0] LoadExtended
+                );
+always @(*) begin
+    case (funct3)
+        000: MemSize = `SIZE_BYTE;
+        001: MemSize = `SIZE_HWORD;
+        010: MemSize = `SIZE_WORD;
+        default: MemSize = 2'bxx;
+    endcase
+   end
+
+always @(*) begin
+    case (funct3)
+        000: LoadExtended = {{24{DataWord[7]}}, DataWord[7:0]};
+        001: LoadExtended = {{16{DataWord[15]}}, {DataWord[15:0]} };
+        010: LoadExtended = DataWord;
+        100: LoadExtended = {{24{1'b0}}, {DataWord[7:0]} };
+        101: LoadExtended = {{16{1'b0}}, {DataWord[15:0]} };
+    endcase
+   end
+endmodule
 
 module PCUpdate(
     input PCSel,
@@ -255,6 +289,26 @@ module OpDecoder(
                     MemRW <= `MemRW_Read;
                     RWrEn <= `RWrEn_Enable;
                     WBSel <= `WBSel_PC4;
+                end
+            `OPCODE_AUIPC:
+                begin
+                    PCSel <= `PCSel_4;
+                    ImmSel <= `ImmSel_U;
+                    ASel <= `ASel_PC;
+                    BSel <= `BSel_IMM;
+                    MemRW <= `MemRW_Read;
+                    RWrEn <= `RWrEn_Enable;
+                    WBSel <= `WBSel_ALU;
+                end
+            `OPCODE_LUI:
+                begin
+                    PCSel <= `PCSel_4;
+                    ImmSel <= `ImmSel_U;
+                    ASel <= `ASel_Reg;
+                    BSel <= `BSel_IMM;
+                    MemRW <= `MemRW_Read;
+                    RWrEn <= `RWrEn_Enable;
+                    WBSel <= `WBSel_Imm;
                 end
             default:
             begin
