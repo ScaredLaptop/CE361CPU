@@ -73,14 +73,18 @@ module SingleCycleCPU(halt, clk, rst);
 
     wire invalidOpcode;
     wire unalignedPC;
+    wire unalignedAccess;
    SizeModule SM(.funct3(funct3),
                 .DataWord(DataWord),
                 .MemSize(MemSize),
                 .LoadExtended(LoadExtended)
                 );
-    assign halt = invalidOpcode | unalignedPC;
+    assign halt = invalidOpcode | unalignedPC | unalignedAccess;
    // System State (everything is neg assert)
    InstMem IMEM(.Addr(PC), .Size(`SIZE_WORD), .DataOut(InstWord), .CLK(clk));
+   assign unalignedAccess = (MemRW == `MemRW_Read || MemRW == `MemRW_Write)? 
+                    (((MemSize == `SIZE_HWORD && ALUOutput[0] != 1'b0) || (MemSize == `SIZE_WORD && (ALUOutput[0] != 1'b0 || ALUOutput[0] != 1'b0)))?
+                        1: 0) :0;
    DataMem DMEM(.Addr(ALUOutput), .Size(MemSize), .DataIn(Rdata2), .DataOut(DataWord), .WEN(MemRW), .CLK(clk));
 
    RegFile RF(.AddrA(Rsrc1), .DataOutA(Rdata1), 
