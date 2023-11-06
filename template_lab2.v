@@ -71,11 +71,14 @@ module SingleCycleCPU(halt, clk, rst);
 
    wire [31:0] LoadExtended;
 
+    wire invalidOpcode;
+    wire unalignedPC;
    SizeModule SM(.funct3(funct3),
                 .DataWord(DataWord),
                 .MemSize(MemSize),
                 .LoadExtended(LoadExtended)
                 );
+    assign halt = invalidOpcode | unalignedPC;
    // System State (everything is neg assert)
    InstMem IMEM(.Addr(PC), .Size(`SIZE_WORD), .DataOut(InstWord), .CLK(clk));
    DataMem DMEM(.Addr(ALUOutput), .Size(MemSize), .DataIn(Rdata2), .DataOut(DataWord), .WEN(MemRW), .CLK(clk));
@@ -129,9 +132,16 @@ module SingleCycleCPU(halt, clk, rst);
     .MemRW(MemRW), 
     .RWrEn(RWrEn), 
     .WBSel(WBSel),
-    .halt(halt));
+    .halt(invalidOpcode));
 endmodule // SingleCycleCPU
 
+module AlignCheck(input wire [31:0] PC, output reg halt);
+    always @(*) begin
+        halt <= 1'b0;
+        if(PC[0] != 0 || PC[1] != 0)
+            halt <= 1'b1; 
+    end
+endmodule
 module SizeModule(input [2:0] funct3,
                 input [31:0] DataWord,
                 output reg [1:0] MemSize,
@@ -224,6 +234,7 @@ module OpDecoder(
    output reg halt
 );
    always @(*) begin
+    halt <= 1'b0;
       case (op)
             `OPCODE_COMPUTE: // R-Type
                 begin
