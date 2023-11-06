@@ -74,12 +74,16 @@ module SingleCycleCPU(halt, clk, rst);
     wire invalidOpcode;
     wire unalignedPC;
     wire unalignedAccess;
+    wire invalidSize;
+
    SizeModule SM(.funct3(funct3),
                 .DataWord(DataWord),
                 .MemSize(MemSize),
-                .LoadExtended(LoadExtended)
+                .LoadExtended(LoadExtended),
+                .halt(invalidSize)
                 );
-   assign halt = invalidOpcode | unalignedPC | unalignedAccess | invalidBranch | invalidALUOp;
+    assign invalidLoadStore = (opcode == `OPCODE_LOAD || opcode == `OPCODE_STORE)? invalidSize : 0;
+   assign halt = invalidOpcode | unalignedPC | unalignedAccess | invalidBranch | invalidALUOp | invalidLoadStore;
    // System State (everything is neg assert)
    InstMem IMEM(.Addr(PC), .Size(`SIZE_WORD), .DataOut(InstWord), .CLK(clk));
    assign unalignedAccess = (opcode == `OPCODE_LOAD || opcode == `OPCODE_STORE)? 
@@ -158,24 +162,35 @@ endmodule
 module SizeModule(input [2:0] funct3,
                 input [31:0] DataWord,
                 output reg [1:0] MemSize,
-                output reg [31:0] LoadExtended
+                output reg [31:0] LoadExtended,
+                output reg halt
                 );
 always @(*) begin
+    halt <= 1'b0;
     case (funct3)
         3'b000: MemSize = `SIZE_BYTE;
         3'b001: MemSize = `SIZE_HWORD;
         3'b010: MemSize = `SIZE_WORD;
-        default: MemSize = 2'bxx;
+        default: begin 
+            halt <= 1'b1;
+            MemSize = 2'bxx;
+        end
     endcase
    end
 
 always @(*) begin
+    halt <= 1'b0;
     case (funct3)
         3'b000: LoadExtended = {{24{DataWord[7]}}, DataWord[7:0]};
         3'b001: LoadExtended = {{16{DataWord[15]}}, {DataWord[15:0]} };
         3'b010: LoadExtended = DataWord;
         3'b100: LoadExtended = {{24{1'b0}}, {DataWord[7:0]} };
         3'b101: LoadExtended = {{16{1'b0}}, {DataWord[15:0]} };
+        default: begin
+            halt <= 1'b1;
+            LoadExtended = {32{1'b0}};
+        end
+
     endcase
    end
 endmodule
