@@ -41,7 +41,7 @@
 // Template for Northwestern - CompEng 361 - Lab2
 // Groupname: SingleRussleCPU
 // NetIDs: ljp0624, swp8132
-
+// Datapath used from https://inst.eecs.berkeley.edu/~cs61c/su21/pdfs/lectures/fa20-trimmed/lec20_lec21.pdf
 module SingleCycleCPU(halt, clk, rst);
    output halt;
    input clk, rst;
@@ -192,13 +192,16 @@ module BranchComparison(
     input [2:0] funct3,
     output reg BR
 );
-
+wire signed [31:0]  Rdata1_s;
+wire signed [31:0] Rdata2_s;
+assign Rdata1_s = Rdata1;
+assign Rdata2_s = Rdata2;
 always @(*) begin
     case(funct3)
-        `BEQ: BR = (Rdata1 == Rdata2)? 1 : 0;
-        `BNE: BR = (Rdata1 != Rdata2)? 1 : 0;
-        `BLT: BR = (Rdata1 < Rdata2)? 1 : 0;
-        `BGE: BR = (Rdata1 >= Rdata2)? 1 : 0;
+        `BEQ: BR = (Rdata1_s == Rdata2_s)? 1 : 0;
+        `BNE: BR = (Rdata1_s != Rdata2_s)? 1 : 0;
+        `BLT: BR = (Rdata1_s < Rdata2_s)? 1 : 0;
+        `BGE: BR = (Rdata1_s >= Rdata2_s)? 1 : 0;
         `BLTU: BR = (Rdata1 < Rdata2)? 1 : 0;
         `BGEU: BR = (Rdata1 >= Rdata2)? 1 : 0;
         default: BR = 1'bx;
