@@ -161,10 +161,10 @@ class RTypeInstruction:
                 regs.regFile[self.rd] = regs.regFile[self.rs1] & regs.regFile[self.rs2]
                 return regs
             case "sll":
-                regs.regFile[self.rd] = regs.regFile[self.rs1] << regs.regFile[self.rs2]
+                regs.regFile[self.rd] = (regs.regFile[self.rs1] << regs.regFile[self.rs2]) & 0xFFFFFFFF
                 return regs
             case "srl":
-                regs.regFile[self.rd] = regs.regFile[self.rs1] >> regs.regFile[self.rs2]
+                regs.regFile[self.rd] = (regs.regFile[self.rs1] >> regs.regFile[self.rs2] ) & 0xFFFFFFFF
                 return regs
             case "sra":
                 # yoinked from stackoverflow
@@ -236,10 +236,10 @@ class ITypeInstruction:
                 regs.regFile[self.rd] = regs.regFile[self.rs1] & self.imm
                 return regs
             case "slli":
-                regs.regFile[self.rd] = regs.regFile[self.rs1] << self.imm
+                regs.regFile[self.rd] = (regs.regFile[self.rs1] << self.imm) & 0xFFFFFFFF
                 return regs
             case "srli":
-                regs.regFile[self.rd] = regs.regFile[self.rs1] >> self.imm
+                regs.regFile[self.rd] = (regs.regFile[self.rs1] >> self.imm) & 0xFFFFFFFF
                 return regs
             case "srai":
                 # yoinked from stackoverflow
@@ -313,17 +313,21 @@ class STypeInstruction:
     def computeOnReg(self, regs: registers = None) -> registers:
         match(self.name):
             case "sb":
-                self.memory[regs.regFile[self.rs1] + self.imm] = self.memory[regs.regFile[self.rs1] + self.imm] & 0xFFFFFF00 + regs.regFile[self.rs2] & 0xFF
+                self.memory[regs.regFile[self.rs1] + self.imm] = hex(int(f"0x{self.memory[regs.regFile[self.rs1] + self.imm]}",16) & 0xFFFFFF00 + regs.regFile[self.rs2] & 0xFF)[2:]
                 return regs
             case "sh":
-                self.memory[regs.regFile[self.rs1] + self.imm] = self.memory[regs.regFile[self.rs1] + self.imm] & 0xFFFF0000 + regs.regFile[self.rs2] & 0xFFFF
+                self.memory[regs.regFile[self.rs1] + self.imm] = hex(int(f"0x{self.memory[regs.regFile[self.rs1] + self.imm]}",16) & 0xFFFF0000 + regs.regFile[self.rs2] & 0xFFFF)[2:]
                 return regs
             case "sw":
-                self.memory[regs.regFile[self.rs1] + self.imm] = regs.regFile[self.rs2]
+                print("data to be stored")
+                print(hex(int(f"0x{regs.regFile[self.rs2]}", 16))[2:])
+                print("destination in mem:")
+                print(regs.regFile[self.rs1])
+                self.memory[regs.regFile[self.rs1] + self.imm] = hex(int(f"0x{regs.regFile[self.rs2]}", 16))[2:]
                 return regs
 
     def printInst(self):
-        print(f"r{self.rd} = r{self.rs1} {self.name} r{self.imm}")
+        print(f"M[r{self.rs1} + r{self.imm}]  = r{self.rs2}")
 
 
 def binaryToHexLilEndian(hexString: str, printBigEndianInst : bool = False) -> str:
@@ -340,9 +344,21 @@ def binaryToHexLilEndian(hexString: str, printBigEndianInst : bool = False) -> s
         print(localHexInst)
     return finalInst[:-1]
 
+def HexBigToLilEndian(hexString: str) -> str:
+    i = 0
+    finalInst = ""
+    while True:
+        i += 2
+        byte =  "0" + hexString[i : i+2] + "0"
+        finalInst = byte[-3:-1] + "\n" + finalInst
+        if i == 8:
+            break
+    return finalInst[:-1]
+
 def makeMemoryFile(filename, *instructions):
     """
-    Memory is only 32 instructions long, so only add a max of 32 instructions
+    Memory is only 256 and 1/4 instructions long, 
+    but this only takes 32 instructions to not make every test too complicatied
     Any unspecified instructions will be padded with no ops
     assumes that the instruction is already encoded
     """
@@ -373,7 +389,448 @@ def makeMemoryArray(*instructions):
     allInst = []
     for inst in instructions[0:31]:
         allInst.append(inst + "\n")
-    allInst += [noOpLilEnd for i in range(40-len(instructions))]
+    allInst += [noOpLilEnd for i in range(256-len(instructions))]
+
+def RTypeTestSuite():
+    inputRegs = [
+        0x0,
+        0x45,
+        0x10,
+        0x0,
+        0xffffff80,
+        0x3f,
+        0x0,
+        0xffff,
+        0xe8,
+        0x0,
+        0xFFa5F910, #r1 for xor
+        0x005aF610, # r2 for xor
+        0x0, # output
+        0xFFA60, #rs1 for or
+        0xFF560,
+        0x0, # out
+        0xFF0, # and
+        0xFFF,
+        0x0, #out
+        0xFF000001, #sll
+        0x2, # sl by this amount
+        0x0, #out
+        0xFF00000F, #srl
+        0x4,
+        0x0, #out
+        0xFF00000F, #sra
+        0x4,
+        0x0, #out
+        0xAAAAAAAA, #slt
+        0xAAAAAAAB,
+        0x0, #out
+        0x31
+    ]
+    # print(inputRegs[1])
+    regfile = registers(inputRegs)
+    regfile.registersToHexFile("regs_in.hex")
+    print("all regs:")
+    regfile.printRegInfo()
+
+    # compute on regs
+    RTypeInstruction("add", 1, 2, 3).computeOnReg(regfile)
+    print("reg file after add")
+    regfile.printRegInfo(printOnlyTheseRegNums=[1,2,3])
+    RTypeInstruction("sub", 1, 2, 3).computeOnReg(regfile)
+    print("reg file after sub")
+    regfile.printRegInfo(printOnlyTheseRegNums=[1,2,3])
+    RTypeInstruction("add", 4, 5, 6).computeOnReg(regfile)
+    RTypeInstruction("sub", 7, 8, 9).computeOnReg(regfile)
+    RTypeInstruction("xor", 10, 11, 12).computeOnReg(regfile)
+    RTypeInstruction("or", 13, 14, 15).computeOnReg(regfile)
+    RTypeInstruction("and", 16, 17, 18).computeOnReg(regfile)
+    RTypeInstruction("sll", 19, 20, 21).computeOnReg(regfile)
+    RTypeInstruction("srl", 22, 23, 24).computeOnReg(regfile)
+    RTypeInstruction("sra", 25, 26, 27).computeOnReg(regfile)
+    RTypeInstruction("slt", 28, 29, 30).computeOnReg(regfile)
+
+    # put to memory
+    makeMemoryFile("mem_in.hex",
+    RTypeInstruction("add", 1, 2, 3).encodeInstToLilEndianHex(),
+    RTypeInstruction("sub", 1, 2, 3).encodeInstToLilEndianHex(),
+    RTypeInstruction("add", 4, 5, 6).encodeInstToLilEndianHex(),
+    RTypeInstruction("sub", 7, 8, 9).encodeInstToLilEndianHex(),
+    RTypeInstruction("xor", 10, 11, 12).encodeInstToLilEndianHex(),
+    RTypeInstruction("or", 13, 14, 15).encodeInstToLilEndianHex(),
+    RTypeInstruction("and", 16, 17, 18).encodeInstToLilEndianHex(),
+    RTypeInstruction("sll", 19, 20, 21).encodeInstToLilEndianHex(),
+    RTypeInstruction("srl", 22, 23, 24).encodeInstToLilEndianHex(),
+    RTypeInstruction("sra", 25, 26, 27).encodeInstToLilEndianHex(),
+    RTypeInstruction("slt", 28, 29, 30).encodeInstToLilEndianHex(),
+    "00\n00\n00\n00"
+    )
+
+    outputRegs = [
+        0x0,
+        0x45,
+        0x10,
+        0x35,
+        0xffffff80,
+        0x3f,
+        0xffffffbf,
+        0xffff,
+        0xe8,
+        0xff17,
+        0xFFA5F910, #r1 for xor
+        0x005AF610, # r2 for xor
+        0xFFFF0F00, # output
+        0xFFA60, #rs1 for or
+        0xFF560,
+        0xFFF60, # out
+        0xFF0, # and
+        0xFFF,
+        0xFF0, #out
+        0xFF000001, #sll
+        0x2, # sl by this amount
+        0xFC000004, #out
+        0xFF00000F, #srl
+        0x4,
+        0x0FF00000, #out
+        0xFF00000F, #sra
+        0x4,
+        0xFFF00000, #out
+        0xAAAAAAAA, #slt
+        0xAAAAAAAB,
+        0x1, #out
+        0x31
+    ]
+    for index, value in enumerate(regfile.regFile):
+        # print(f"{value}, {outputRegs[index]}")
+        if value != outputRegs[index]:
+            raise Exception(f"input reg {value} and output reg {outputRegs[index]}\ndont match in reg {index}")
+
+    regfile = registers(outputRegs)
+    regfile.registersToHexFile("test_regs_out.hex")
+
+def testUInst():
+    # I type instructions
+    inputRegs = [
+        0x0,
+        0x1,
+        0x2,
+        0x3,
+        0x0,
+        0x1,
+        0x2,
+        0x3,
+        0x0,
+        0x1,
+        0x2,
+        0x3,
+        0x0,
+        0x1,
+        0x2,
+        0x3,
+        0x0,
+        0x1,
+        0x2,
+        0x3,
+        0x0,
+        0x1,
+        0x2,
+        0x3,
+        0x0,
+        0x1,
+        0x2,
+        0x3,
+        0x0,
+        0x1,
+        0x2,
+        0x3
+    ]
+    # print(inputRegs[1])
+    regfile = registers(inputRegs)
+    regfile.registersToHexFile("regs_in.hex")
+    print("all regs:")
+    regfile.printRegInfo()
+
+
+
+    # put to memory
+    makeMemoryFile("mem_in.hex",
+    "33\n00\n00\n00",
+    "33\n00\n00\n00",
+    "33\n00\n00\n00",
+    "b7\n20\n00\n00",
+    "00\n00\n00\n00"
+    )
+
+def testBranchInst():
+    # I type instructions
+    inputRegs = [
+        0x0,
+        0x1,
+        0x2,
+        0x3,
+        0xFFFFFFFF,
+        0x00FFFFFF,
+        0x6,
+        0x6,
+        0x8,
+        0x9,
+        0x2,
+        0x3,
+        0x0,
+        0x1,
+        0x2,
+        0x3,
+        0x0,
+        0x1,
+        0x2,
+        0x3,
+        0x0,
+        0x1,
+        0x2,
+        0x3,
+        0x0,
+        0x1,
+        0x2,
+        0x3,
+        0x0,
+        0x1,
+        0x2,
+        0x3
+    ]
+    # print(inputRegs[1])
+    regfile = registers(inputRegs)
+    regfile.registersToHexFile("regs_in.hex")
+    print("all regs:")
+    regfile.printRegInfo()
+
+
+
+    # # beq
+    # makeMemoryFile("mem_in.hex",
+    # "33\n00\n00\n00",
+    # "33\n00\n00\n00",
+    # HexBigToLilEndian("0x00730863"),
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # )
+
+    # beq, misaligned
+    makeMemoryFile("mem_in.hex",
+    "33\n00\n00\n00",
+    "33\n00\n00\n00",
+    HexBigToLilEndian("0x00730963"),
+    HexBigToLilEndian("0x12345678"),
+    HexBigToLilEndian("0x12345678"),
+    HexBigToLilEndian("0x12345678"),
+    HexBigToLilEndian("0x12345678"),
+    "00\n00\n00\n00",
+    )
+
+    # # branch ne
+    # makeMemoryFile("mem_in.hex",
+    # "33\n00\n00\n00",
+    # "33\n00\n00\n00",
+    # HexBigToLilEndian("0x00209863"),
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # )
+
+    # # branch lt
+    # makeMemoryFile("mem_in.hex",
+    # "33\n00\n00\n00",
+    # "33\n00\n00\n00",
+    # HexBigToLilEndian("0x00114863"),
+    # HexBigToLilEndian("0x0020c863"),
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # )
+    
+    # # branch ge
+    # makeMemoryFile("mem_in.hex",
+    # "33\n00\n00\n00",
+    # "33\n00\n00\n00",
+    # HexBigToLilEndian("0x0020d863"),
+    # HexBigToLilEndian("0x00115863"),
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # )
+
+    # # branch signed lt
+    # makeMemoryFile("mem_in.hex",
+    # "33\n00\n00\n00",
+    # "33\n00\n00\n00",
+    # HexBigToLilEndian("0x00524863"),
+    # "33\n00\n00\n00",
+    # "33\n00\n00\n00",
+    # HexBigToLilEndian("0x00115863"),
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # )
+
+    # # branch signed ge
+    # makeMemoryFile("mem_in.hex",
+    # "33\n00\n00\n00",
+    # "33\n00\n00\n00",
+    # HexBigToLilEndian("0x0042d863"),
+    # "33\n00\n00\n00",
+    # "33\n00\n00\n00",
+    # HexBigToLilEndian("0x00115863"),
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # )
+
+    # # branch ltu
+    # makeMemoryFile("mem_in.hex",
+    # "33\n00\n00\n00",
+    # "33\n00\n00\n00",
+    # HexBigToLilEndian("0x00526863"),
+    # "33\n00\n00\n00",
+    # "33\n00\n00\n00",
+    # HexBigToLilEndian("0x00316863"),
+    # "33\n00\n00\n00",
+    # "33\n00\n00\n00",
+    # HexBigToLilEndian("0x00115863"),
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # )
+
+    # # branch bgeu
+    # makeMemoryFile("mem_in.hex",
+    # "33\n00\n00\n00",
+    # "33\n00\n00\n00",
+    # HexBigToLilEndian("0x00317863"),
+    # "33\n00\n00\n00",
+    # "33\n00\n00\n00",
+    # HexBigToLilEndian("0x00527863"),
+    # "33\n00\n00\n00",
+    # "33\n00\n00\n00",
+    # HexBigToLilEndian("0x00115863"),
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # "00\n00\n00\n00",
+    # )
+
+def testStoreInstr():
+    # I type instructions
+    inputRegs = [
+        0x20,
+        0x3,
+        0x2,
+        0x12345678,
+        0xFFFFFFFF,
+        0x00FFFFFF,
+        0x6,
+        0x6,
+        0x3,
+        0x9,
+        0x2,
+        0x3,
+        0x0,
+        0x1,
+        0x2,
+        0x3,
+        0x0,
+        0x1,
+        0x2,
+        0x3,
+        0x0,
+        0x1,
+        0x2,
+        0x3,
+        0x0,
+        0x1,
+        0x2,
+        0x3,
+        0x0,
+        0x1,
+        0x2,
+        0x3
+    ]
+    # print(inputRegs[1])
+    regfile = registers(inputRegs)
+    regfile.registersToHexFile("regs_in.hex")
+    print("all regs:")
+    regfile.printRegInfo()
+
+
+
+    # store word
+    makeMemoryFile("mem_in.hex",
+    "33\n00\n00\n00",
+    "33\n00\n00\n00",
+    "33\n00\n00\n00",
+    "33\n00\n00\n00",
+    "33\n00\n00\n00",
+    HexBigToLilEndian("0x00402423"),
+    HexBigToLilEndian("0x00400823"),
+    HexBigToLilEndian("0x01002203"),
+    "00\n00\n00\n00",
+    )
 
 
 if __name__ == "__main__":
@@ -384,61 +841,23 @@ if __name__ == "__main__":
     
     # PYTHON'S HEX IS NOT 4 BYTE LONG, WILL JUST MAKE
     # THE INT AS BIG AS NEEDED
-    inputRegs = [
-        0x0,
-        -0x456,
-        0x4,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        -0x456,
-        0x4,
-        -0x16,
-        0x0,
-        0x0,
-        0x0,
-        -0x456,
-        0x4,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        -0x456,
-        0x4,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        -0x456,
-        0x4,
-        0x0,
-        0x0,
-        0x0,
-        0x0,
-        0x0
-    ]
-    # print(inputRegs[1])
-    regfile = registers(inputRegs)
-    regfile.registersToHexFile("regs_in.hex")
-    print("all regs:")
-    regfile.printRegInfo()
+    # RTypeTestSuite()
+    # testBranchInst()
+    testStoreInstr()
 
     ################ test add ####################
-    print()
-    Inst = RTypeInstruction("add", 1, 2, 3)
-    Inst.printInst()
-    Inst.encodeInstToLilEndianHex()
-    print("initial reg info")
-    regfile.printRegInfo(printOnlyTheseRegNums=[1,2,3])
-    newregfile = Inst.computeOnReg(regfile)
-    print("end reg info")
-    newregfile.printRegInfo(printOnlyTheseRegNums=[1,2,3])
-    print()
-    addInst = Inst.encodeInstToLilEndianHex(True)
-    # print("\n\n\n\\n\n\n\n\n\\n\n\n\n\n\\n\n\n\n\n")
-    # print(addInst)
-    makeMemoryFile("mem_in.hex", addInst, addInst, addInst)
+    # print()
+    # Inst = RTypeInstruction("add", 1, 2, 3)
+    # Inst.printInst()
+    # Inst.encodeInstToLilEndianHex()
+    # print("initial reg info")
+    # regfile.printRegInfo(printOnlyTheseRegNums=[1,2,3])
+    # newregfile = Inst.computeOnReg(regfile)
+    # print("end reg info")
+    # newregfile.printRegInfo(printOnlyTheseRegNums=[1,2,3])
+    # print()
+    # addInst = Inst.encodeInstToLilEndianHex(True)
+    # makeMemoryFile("mem_in.hex", addInst, addInst, addInst)
 
     # ################ test sub ####################
     # print()
@@ -559,6 +978,18 @@ if __name__ == "__main__":
     # print()
     # addInst = Inst.encodeInstToLilEndianHex()
     # makeMemoryFile("testmemfile.txt", addInst, addInst, addInst)
+
+    # ################ test sw ####################
+    # print()
+    # Inst = STypeInstruction("sw", 1, 2, 8, makeMemoryArray())
+    # print("initial reg info")
+    # regfile.printRegInfo(printOnlyTheseRegNums=[1,2,3])
+    # newregfile = Inst.computeOnReg(regfile)
+    # print("end reg info")
+    # newregfile.printRegInfo(printOnlyTheseRegNums=[1,2,3])
+    # print()
+    # addInst = Inst.encodeInstToLilEndianHex(True)
+    # makeMemoryFile("mem_in.hex", addInst, addInst, addInst)
 
 
 
