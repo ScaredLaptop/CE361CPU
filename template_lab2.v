@@ -128,7 +128,8 @@ module SingleCycleCPU(halt, clk, rst);
     .BSel(BSel), 
     .MemRW(MemRW), 
     .RWrEn(RWrEn), 
-    .WBSel(WBSel));
+    .WBSel(WBSel),
+    .halt(halt));
 endmodule // SingleCycleCPU
 
 module SizeModule(input [2:0] funct3,
@@ -216,7 +217,8 @@ module OpDecoder(
    output reg BSel, 
    output reg MemRW, 
    output reg RWrEn, 
-   output reg [1:0] WBSel
+   output reg [1:0] WBSel,
+   output reg halt
 );
    always @(*) begin
       case (op)
@@ -312,7 +314,7 @@ module OpDecoder(
                 end
             default:
             begin
-               {PCSel, ImmSel, ASel, BSel, MemRW, RWrEn, WBSel} = 10'bxxxxxxxxxx;
+               halt = 1'b1;
             end
         endcase
    end
