@@ -90,9 +90,11 @@ module SingleCycleCPU(halt, clk, rst);
    assign MemRW_Halt_Gated = (halt | MemRW);
    DataMem DMEM(.Addr(ALUOutput), .Size(MemSize), .DataIn(Rdata2), .DataOut(DataWord), .WEN(MemRW_Halt_Gated), .CLK(clk));
 
+   wire RWrEn_Halt_Gated;
+   assign RWrEn_Halt_Gated = (halt | RWrEn);
    RegFile RF(.AddrA(Rsrc1), .DataOutA(Rdata1), 
           .AddrB(Rsrc2), .DataOutB(Rdata2), 
-          .AddrW(Rdst), .DataInW(RWrData), .WenW(RWrEn), .CLK(clk));
+          .AddrW(Rdst), .DataInW(RWrData), .WenW(RWrEn_Halt_Gated), .CLK(clk));
 
    Reg PC_REG(.Din(NPC), .Qout(PC), .WEN(1'b0), .CLK(clk), .RST(rst));
 
