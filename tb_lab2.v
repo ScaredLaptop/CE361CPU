@@ -27,7 +27,8 @@ module tb;
       #0 $readmemh("mem_in.hex", CPU.IMEM.Mem);
       #0 $readmemh("mem_in.hex", CPU.DMEM.Mem);
       #0 $readmemh("regs_in.hex", CPU.RF.Mem);
-
+      #0 $dumpfile("output.vcd");
+      #0 $dumpvars(0, CPU);
       // Feel free to modify to inspect whatever you want
       #0 $monitor($time,, "PC=%08x IR=%08x halt=%x exit=%x", CPU.PC, CPU.InstWord, halt, exit);
 
@@ -39,8 +40,6 @@ module tb;
 
       // Dump memory
       #0 $writememh("mem_out.hex", CPU.DMEM.Mem);
-      $dumpfile("output.vcd");
-      $dumpvars(0, CPU);
       $finish;      
    end
    

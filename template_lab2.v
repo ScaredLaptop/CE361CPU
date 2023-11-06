@@ -139,20 +139,20 @@ module SizeModule(input [2:0] funct3,
                 );
 always @(*) begin
     case (funct3)
-        000: MemSize = `SIZE_BYTE;
-        001: MemSize = `SIZE_HWORD;
-        010: MemSize = `SIZE_WORD;
+        3'b000: MemSize = `SIZE_BYTE;
+        3'b001: MemSize = `SIZE_HWORD;
+        3'b010: MemSize = `SIZE_WORD;
         default: MemSize = 2'bxx;
     endcase
    end
 
 always @(*) begin
     case (funct3)
-        000: LoadExtended = {{24{DataWord[7]}}, DataWord[7:0]};
-        001: LoadExtended = {{16{DataWord[15]}}, {DataWord[15:0]} };
-        010: LoadExtended = DataWord;
-        100: LoadExtended = {{24{1'b0}}, {DataWord[7:0]} };
-        101: LoadExtended = {{16{1'b0}}, {DataWord[15:0]} };
+        3'b000: LoadExtended = {{24{DataWord[7]}}, DataWord[7:0]};
+        3'b001: LoadExtended = {{16{DataWord[15]}}, {DataWord[15:0]} };
+        3'b010: LoadExtended = DataWord;
+        3'b100: LoadExtended = {{24{1'b0}}, {DataWord[7:0]} };
+        3'b101: LoadExtended = {{16{1'b0}}, {DataWord[15:0]} };
     endcase
    end
 endmodule
@@ -314,7 +314,7 @@ module OpDecoder(
                 end
             default:
             begin
-               halt = 1'b1;
+               halt <= 1'b1;
             end
         endcase
    end
