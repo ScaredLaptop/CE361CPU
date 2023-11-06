@@ -61,7 +61,7 @@ module SingleCycleCPU(halt, clk, rst);
    wire [6:0]  opcode;
    wire [6:0]  funct7;
    wire [2:0]  funct3;
-
+   wire [4:0] instr;
    // ALU Inputs
    wire [31:0] ALUOutput;
    wire [31:0] ALU_A;
@@ -79,13 +79,16 @@ module SingleCycleCPU(halt, clk, rst);
                 .MemSize(MemSize),
                 .LoadExtended(LoadExtended)
                 );
-    assign halt = invalidOpcode | unalignedPC | unalignedAccess;
+   assign halt = invalidOpcode | unalignedPC | unalignedAccess | invalidBranch | invalidALUOp;
    // System State (everything is neg assert)
    InstMem IMEM(.Addr(PC), .Size(`SIZE_WORD), .DataOut(InstWord), .CLK(clk));
-   assign unalignedAccess = (MemRW == `MemRW_Read || MemRW == `MemRW_Write)? 
+   assign unalignedAccess = (opcode == `OPCODE_LOAD || opcode == `OPCODE_STORE)? 
                     (((MemSize == `SIZE_HWORD && ALUOutput[0] != 1'b0) || (MemSize == `SIZE_WORD && (ALUOutput[0] != 1'b0 || ALUOutput[0] != 1'b0)))?
                         1: 0) :0;
-   DataMem DMEM(.Addr(ALUOutput), .Size(MemSize), .DataIn(Rdata2), .DataOut(DataWord), .WEN(MemRW), .CLK(clk));
+   assign invalidBranch = (opcode == `OPCODE_BRANCH & invalidBranchOp) ? 1 : 0;
+   wire MemRW_Halt_Gated;
+   assign MemRW_Halt_Gated = (halt | MemRW);
+   DataMem DMEM(.Addr(ALUOutput), .Size(MemSize), .DataIn(Rdata2), .DataOut(DataWord), .WEN(MemRW_Halt_Gated), .CLK(clk));
 
    RegFile RF(.AddrA(Rsrc1), .DataOutA(Rdata1), 
           .AddrB(Rsrc2), .DataOutB(Rdata2), 
@@ -103,7 +106,8 @@ module SingleCycleCPU(halt, clk, rst);
 
    assign ALU_A = (ASel == 1'b0) ? Rdata1 : PC; 
    assign ALU_B = (BSel == 1'b0) ? Rdata2 : Imm;
-   ExecutionUnit EU(.out(ALUOutput), .opA(ALU_A), .opB(ALU_B), .func(funct3), .auxFunc(funct7), .opcode(opcode));
+   wire invalidALUOp;
+   ExecutionUnit EU(.out(ALUOutput), .opA(ALU_A), .opB(ALU_B), .func(funct3), .auxFunc(funct7), .opcode(opcode), .halt(invalidALUOp));
 
 
    // Write Back signal generation
@@ -115,11 +119,13 @@ module SingleCycleCPU(halt, clk, rst);
 
    // Branch Comparison TODO: support unsigned
    wire BR;
+   wire invalidBranchOp;
    BranchComparison BC(
     .Rdata1(Rdata1),
     .Rdata2(Rdata2),
     .funct3(funct3),
-    .BR(BR)
+    .BR(BR),
+    .halt(invalidBranchOp)
     );
    // Fetch Address Datapath
    PCUpdate PCU(.PCSel(PCSel), .PC(PC), .PC_Jump(ALUOutput), .NPC(NPC)); 
@@ -136,7 +142,8 @@ module SingleCycleCPU(halt, clk, rst);
     .MemRW(MemRW), 
     .RWrEn(RWrEn), 
     .WBSel(WBSel),
-    .halt(invalidOpcode));
+    .halt(invalidOpcode),
+    .instr(instr));
 endmodule // SingleCycleCPU
 
 module AlignCheck(input wire [31:0] PC, output reg halt);
@@ -204,13 +211,15 @@ module BranchComparison(
     input [31:0] Rdata1,
     input [31:0] Rdata2,
     input [2:0] funct3,
-    output reg BR
+    output reg BR,
+    output reg halt
 );
 wire signed [31:0]  Rdata1_s;
 wire signed [31:0] Rdata2_s;
 assign Rdata1_s = Rdata1;
 assign Rdata2_s = Rdata2;
 always @(*) begin
+    halt <= 1'b0;
     case(funct3)
         `BEQ: BR = (Rdata1_s == Rdata2_s)? 1 : 0;
         `BNE: BR = (Rdata1_s != Rdata2_s)? 1 : 0;
@@ -218,7 +227,9 @@ always @(*) begin
         `BGE: BR = (Rdata1_s >= Rdata2_s)? 1 : 0;
         `BLTU: BR = (Rdata1 < Rdata2)? 1 : 0;
         `BGEU: BR = (Rdata1 >= Rdata2)? 1 : 0;
-        default: BR = 1'bx;
+        default: begin BR = 1'bx;
+            halt <= 1'b1;
+        end
     endcase
 end
 endmodule
@@ -235,7 +246,8 @@ module OpDecoder(
    output reg MemRW, 
    output reg RWrEn, 
    output reg [1:0] WBSel,
-   output reg halt
+   output reg halt,
+   output reg [4:0]instr
 );
    always @(*) begin
     halt <= 1'b0;
@@ -339,17 +351,19 @@ module OpDecoder(
 endmodule
 
 // ExecutionUnit
-module ExecutionUnit(out, opA, opB, func, auxFunc, opcode);
+module ExecutionUnit(out, opA, opB, func, auxFunc, opcode, halt);
 output reg [31:0] out;
 input [31:0] opA, opB;
 input [2:0] func;
 input [6:0] auxFunc;
 input [6:0] opcode;
+output reg halt;
 // Place your code here
 wire signed [31:0] s_opA, s_opB;
 assign s_opA = opA;
 assign s_opB = opB;
 always @(*) begin
+    halt <= 1'b0;
     if(opcode == `OPCODE_COMPUTE || opcode == `OPCODE_COMPUTE_IMM) begin
         case (func)
             3'b000: 
@@ -368,7 +382,10 @@ always @(*) begin
                     out = s_opA >>> opB;
             3'b110: out = opA | opB;
             3'b111: out = opA & opB;
-            default: out = 32'b0;
+            default: begin 
+                halt <= 1'b1;
+                out = 32'b0;
+            end
         endcase
     end
     else
