@@ -52,7 +52,7 @@ class registers:
                     reg = _8fs[0:len(reg)-8] + reg
                     #print the reg info
 
-                    bigString += (printPretty and f"r{regnum}: 0x{reg}\n") or (~printPretty and f"{reg}\n")
+                    bigString += (printPretty and f"r{regnum}: 0x{reg}\n") or (not printPretty and f"{reg}\n")
                     continue
                 if(reg > 0):
                     #read documentation from previous part
@@ -60,7 +60,7 @@ class registers:
                     reg = _80s[0:8-len(reg)] + reg
                     bigString += (printPretty and f"r{regnum}: 0x{reg}\n") or (not printPretty and f"{reg}\n")
                 else:
-                    bigString += (printPretty and f"r{regnum}: 0x{_80s}\n") or (not printPretty and f"{_8fs}\n")
+                    bigString += (printPretty and f"r{regnum}: 0x{_80s}\n") or (not printPretty and f"{_80s}\n")
         else:
             #this is bad code, but just prints out very specific regs instead of all of them
             for regnum in printOnlyTheseRegNums:
@@ -189,7 +189,9 @@ class RTypeInstruction:
 
     def encodeInstToLilEndianHex(self, printBigEndianInst: bool = False):
         localinst = self.funct7 + f'{self.rs2:05b}' + f'{self.rs1:05b}' + self.funct3 + f'{self.rd:05b}' + self.opcode
-        return reverseHexEndianness(localinst, False)
+        # return localinst
+        # return reverseHexEndianness(localinst, printBigEndianInst)
+        return binaryToHexLilEndian(localinst, printBigEndianInst)
 
     def printInst(self):
         print(f"r{self.rd} = r{self.rs1} {self.name} r{self.rs2}")
@@ -216,7 +218,8 @@ class ITypeInstruction:
 
     def encodeInstToLilEndianHex(self, printBigEndianInst: bool = False):
         localinst = f'{self.imm:012b}' + f'{self.rs1:05b}' + self.funct3 + f'{self.rd:05b}' + self.opcode
-        return reverseHexEndianness(localinst, False)
+        # return localinst
+        return binaryToHexLilEndian(localinst, printBigEndianInst)
 
     def computeOnReg(self, regs: registers = None) -> registers:
         match(self.name):
@@ -303,7 +306,9 @@ class STypeInstruction:
 
     def encodeInstToLilEndianHex(self, printBigEndianInst: bool = False):
         localinst = f'{self.imm:012b}'[5:12] + f'{self.rs2:05b}' + f'{self.rs1:05b}' + self.funct3 + f'{self.imm:12b}'[0:5] + self.opcode
-        return reverseHexEndianness(localinst, False)
+        # return localinst
+        # return reverseHexEndianness(localinst, printBigEndianInst)
+        return binaryToHexLilEndian(localinst, printBigEndianInst)
 
     def computeOnReg(self, regs: registers = None) -> registers:
         match(self.name):
@@ -321,19 +326,19 @@ class STypeInstruction:
         print(f"r{self.rd} = r{self.rs1} {self.name} r{self.imm}")
 
 
-def reverseHexEndianness(hexString: str, printBigEndianInst : bool = False) -> str:
+def binaryToHexLilEndian(hexString: str, printBigEndianInst : bool = False) -> str:
     i = 0
     finalInst = ""
     while True:
-        byte = hex(int(hexString[i : i+8],2))[2:]
-        finalInst = byte + finalInst
+        byte =  "0" + hex(int(hexString[i : i+8],2))[2:] + "0"
+        finalInst = byte[-3:-1] + "\n" + finalInst
         i += 8
         if i == 32:
             break
     if printBigEndianInst:
         localHexInst = hex(int(hexString,2))
         print(localHexInst)
-    return finalInst
+    return finalInst[:-1]
 
 def makeMemoryFile(filename, *instructions):
     """
@@ -341,11 +346,12 @@ def makeMemoryFile(filename, *instructions):
     Any unspecified instructions will be padded with no ops
     assumes that the instruction is already encoded
     """
-    noOpLilEnd = "33000000\n"
+    noOpLilEnd = "33\n00\n00\n00\n"
     allInst = ''
     for inst in instructions[0:31]:
         allInst += inst + "\n"
-    allInst += noOpLilEnd * (32-len(instructions))
+    # russ made the memory file longer than it needed to be by one byte by accident
+    allInst += noOpLilEnd * (256-len(instructions)) + "00"
     if filename != "":
             if os.path.isfile(filename):
                 print(f"overwriting file {filename}")
@@ -367,7 +373,7 @@ def makeMemoryArray(*instructions):
     allInst = []
     for inst in instructions[0:31]:
         allInst.append(inst + "\n")
-    allInst += [noOpLilEnd for i in range(32-len(instructions))]
+    allInst += [noOpLilEnd for i in range(40-len(instructions))]
 
 
 if __name__ == "__main__":
@@ -408,11 +414,13 @@ if __name__ == "__main__":
         0x4,
         0x0,
         0x0,
+        0x0,
+        0x0,
         0x0
     ]
     # print(inputRegs[1])
     regfile = registers(inputRegs)
-    regfile.registersToHexFile("firstfile.txt")
+    regfile.registersToHexFile("regs_in.hex")
     print("all regs:")
     regfile.printRegInfo()
 
@@ -427,129 +435,131 @@ if __name__ == "__main__":
     print("end reg info")
     newregfile.printRegInfo(printOnlyTheseRegNums=[1,2,3])
     print()
-    addInst = Inst.encodeInstToLilEndianHex()
-    makeMemoryFile("testmemfile.txt", addInst, addInst, addInst)
+    addInst = Inst.encodeInstToLilEndianHex(True)
+    # print("\n\n\n\\n\n\n\n\n\\n\n\n\n\n\\n\n\n\n\n")
+    # print(addInst)
+    makeMemoryFile("mem_in.hex", addInst, addInst, addInst)
 
-    ################ test sub ####################
-    print()
-    Inst = RTypeInstruction("sub", 1, 2, 3)
-    Inst.printInst()
-    print("initial reg info")
-    regfile.printRegInfo(printOnlyTheseRegNums=[1,2,3])
-    newregfile = Inst.computeOnReg(regfile)
-    print("end reg info")
-    newregfile.printRegInfo(printOnlyTheseRegNums=[1,2,3])
-    print()
+    # ################ test sub ####################
+    # print()
+    # Inst = RTypeInstruction("sub", 1, 2, 3)
+    # Inst.printInst()
+    # print("initial reg info")
+    # regfile.printRegInfo(printOnlyTheseRegNums=[1,2,3])
+    # newregfile = Inst.computeOnReg(regfile)
+    # print("end reg info")
+    # newregfile.printRegInfo(printOnlyTheseRegNums=[1,2,3])
+    # print()
 
-    ################ test xor ####################
-    print()
-    Inst = RTypeInstruction("xor", 1, 2, 3)
-    Inst.printInst()
-    print("initial reg info")
-    regfile.printRegInfo(printOnlyTheseRegNums=[1,2,3])
-    newregfile = Inst.computeOnReg(regfile)
-    print("end reg info")
-    newregfile.printRegInfo(printOnlyTheseRegNums=[1,2,3])
-    print()
+    # ################ test xor ####################
+    # print()
+    # Inst = RTypeInstruction("xor", 1, 2, 3)
+    # Inst.printInst()
+    # print("initial reg info")
+    # regfile.printRegInfo(printOnlyTheseRegNums=[1,2,3])
+    # newregfile = Inst.computeOnReg(regfile)
+    # print("end reg info")
+    # newregfile.printRegInfo(printOnlyTheseRegNums=[1,2,3])
+    # print()
 
-    ################ test or ####################
-    print()
-    Inst = RTypeInstruction("or", 1, 2, 3)
-    Inst.printInst()
-    print("initial reg info")
-    regfile.printRegInfo(printOnlyTheseRegNums=[1,2,3])
-    newregfile = Inst.computeOnReg(regfile)
-    print("end reg info")
-    newregfile.printRegInfo(printOnlyTheseRegNums=[1,2,3])
-    print()
+    # ################ test or ####################
+    # print()
+    # Inst = RTypeInstruction("or", 1, 2, 3)
+    # Inst.printInst()
+    # print("initial reg info")
+    # regfile.printRegInfo(printOnlyTheseRegNums=[1,2,3])
+    # newregfile = Inst.computeOnReg(regfile)
+    # print("end reg info")
+    # newregfile.printRegInfo(printOnlyTheseRegNums=[1,2,3])
+    # print()
 
-    ################ test and ####################
-    print()
-    Inst = RTypeInstruction("and", 1, 2, 3)
-    Inst.printInst()
-    print("initial reg info")
-    regfile.printRegInfo(printOnlyTheseRegNums=[1,2,3])
-    newregfile = Inst.computeOnReg(regfile)
-    print("end reg info")
-    newregfile.printRegInfo(printOnlyTheseRegNums=[1,2,3])
-    print()
+    # ################ test and ####################
+    # print()
+    # Inst = RTypeInstruction("and", 1, 2, 3)
+    # Inst.printInst()
+    # print("initial reg info")
+    # regfile.printRegInfo(printOnlyTheseRegNums=[1,2,3])
+    # newregfile = Inst.computeOnReg(regfile)
+    # print("end reg info")
+    # newregfile.printRegInfo(printOnlyTheseRegNums=[1,2,3])
+    # print()
 
-    ################ test sll ####################
-    print()
-    Inst = RTypeInstruction("sll", 1, 2, 3)
-    Inst.printInst()
-    print("initial reg info")
-    regfile.printRegInfo(printOnlyTheseRegNums=[1,2,3])
-    newregfile = Inst.computeOnReg(regfile)
-    print("end reg info")
-    newregfile.printRegInfo(printOnlyTheseRegNums=[1,2,3])
-    print()
+    # ################ test sll ####################
+    # print()
+    # Inst = RTypeInstruction("sll", 1, 2, 3)
+    # Inst.printInst()
+    # print("initial reg info")
+    # regfile.printRegInfo(printOnlyTheseRegNums=[1,2,3])
+    # newregfile = Inst.computeOnReg(regfile)
+    # print("end reg info")
+    # newregfile.printRegInfo(printOnlyTheseRegNums=[1,2,3])
+    # print()
 
-    ################ test srl ####################
-    print()
-    Inst = RTypeInstruction("srl", 1, 2, 3)
-    Inst.printInst()
-    print("initial reg info")
-    regfile.printRegInfo(printOnlyTheseRegNums=[1,2,3])
-    newregfile = Inst.computeOnReg(regfile)
-    print("end reg info")
-    newregfile.printRegInfo(printOnlyTheseRegNums=[1,2,3])
-    print()
+    # ################ test srl ####################
+    # print()
+    # Inst = RTypeInstruction("srl", 1, 2, 3)
+    # Inst.printInst()
+    # print("initial reg info")
+    # regfile.printRegInfo(printOnlyTheseRegNums=[1,2,3])
+    # newregfile = Inst.computeOnReg(regfile)
+    # print("end reg info")
+    # newregfile.printRegInfo(printOnlyTheseRegNums=[1,2,3])
+    # print()
 
-    ################ test sra ####################
-    print()
-    Inst = RTypeInstruction("sra", 1, 2, 3)
-    Inst.printInst()
-    print("initial reg info")
-    regfile.printRegInfo(printOnlyTheseRegNums=[1,2,3])
-    newregfile = Inst.computeOnReg(regfile)
-    print("end reg info")
-    newregfile.printRegInfo(printOnlyTheseRegNums=[1,2,3])
-    print()
+    # ################ test sra ####################
+    # print()
+    # Inst = RTypeInstruction("sra", 1, 2, 3)
+    # Inst.printInst()
+    # print("initial reg info")
+    # regfile.printRegInfo(printOnlyTheseRegNums=[1,2,3])
+    # newregfile = Inst.computeOnReg(regfile)
+    # print("end reg info")
+    # newregfile.printRegInfo(printOnlyTheseRegNums=[1,2,3])
+    # print()
 
-    ################ test slt ####################
-    print()
-    Inst = RTypeInstruction("slt", 1, 2, 3)
-    Inst.printInst()
-    print("initial reg info")
-    regfile.printRegInfo(printOnlyTheseRegNums=[1,2,3])
-    newregfile = Inst.computeOnReg(regfile)
-    print("end reg info")
-    newregfile.printRegInfo(printOnlyTheseRegNums=[1,2,3])
-    print()
+    # ################ test slt ####################
+    # print()
+    # Inst = RTypeInstruction("slt", 1, 2, 3)
+    # Inst.printInst()
+    # print("initial reg info")
+    # regfile.printRegInfo(printOnlyTheseRegNums=[1,2,3])
+    # newregfile = Inst.computeOnReg(regfile)
+    # print("end reg info")
+    # newregfile.printRegInfo(printOnlyTheseRegNums=[1,2,3])
+    # print()
 
-    ################ test sltu ####################
-    print()
-    Inst = RTypeInstruction("sltu", 1, 2, 3)
-    Inst.printInst()
-    print("initial reg info")
-    regfile.printRegInfo(printOnlyTheseRegNums=[1,2,3])
-    newregfile = Inst.computeOnReg(regfile)
-    print("end reg info")
-    newregfile.printRegInfo(printOnlyTheseRegNums=[1,2,3])
-    print()
-
-
-    # print(inputRegs[1])
-    regfile = registers(inputRegs)
-    regfile.registersToHexFile("firstfile.txt")
-    print("all regs:")
-    regfile.printRegInfo()
-
-    ################ test add ####################
-    print()
-    Inst = RTypeInstruction("add", 1, 2, 3)
-    Inst.printInst()
-    Inst.encodeInstToLilEndianHex()
-    print("initial reg info")
-    regfile.printRegInfo(printOnlyTheseRegNums=[1,2,3])
-    newregfile = Inst.computeOnReg(regfile)
-    print("end reg info")
-    newregfile.printRegInfo(printOnlyTheseRegNums=[1,2,3])
-    print()
-    addInst = Inst.encodeInstToLilEndianHex()
-    makeMemoryFile("testmemfile.txt", addInst, addInst, addInst)
+    # ################ test sltu ####################
+    # print()
+    # Inst = RTypeInstruction("sltu", 1, 2, 3)
+    # Inst.printInst()
+    # print("initial reg info")
+    # regfile.printRegInfo(printOnlyTheseRegNums=[1,2,3])
+    # newregfile = Inst.computeOnReg(regfile)
+    # print("end reg info")
+    # newregfile.printRegInfo(printOnlyTheseRegNums=[1,2,3])
+    # print()
 
 
+    # # print(inputRegs[1])
+    # regfile = registers(inputRegs)
+    # regfile.registersToHexFile("firstfile.txt")
+    # print("all regs:")
+    # regfile.printRegInfo()
 
-    # addInst.computeOnReg()
+    # ################ test add ####################
+    # print()
+    # Inst = RTypeInstruction("add", 1, 2, 3)
+    # Inst.printInst()
+    # Inst.encodeInstToLilEndianHex()
+    # print("initial reg info")
+    # regfile.printRegInfo(printOnlyTheseRegNums=[1,2,3])
+    # newregfile = Inst.computeOnReg(regfile)
+    # print("end reg info")
+    # newregfile.printRegInfo(printOnlyTheseRegNums=[1,2,3])
+    # print()
+    # addInst = Inst.encodeInstToLilEndianHex()
+    # makeMemoryFile("testmemfile.txt", addInst, addInst, addInst)
+
+
+
+    # # addInst.computeOnReg()
