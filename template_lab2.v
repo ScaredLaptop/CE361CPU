@@ -75,7 +75,7 @@ module SingleCycleCPU(halt, clk, rst);
     wire unalignedPC;
     wire unalignedAccess;
     wire invalidSize;
-
+   assign unalignedPC = (~(PC[0] == 1'b0)) | (~(PC[1] == 1'b0));
    SizeModule SM(.funct3(funct3),
                 .DataWord(DataWord),
                 .MemSize(MemSize),
@@ -267,7 +267,7 @@ module OpDecoder(
    output reg [4:0]instr
 );
    always @(*) begin
-    halt <= 1'b0;
+      halt <= 1'b0;
       case (op)
             `OPCODE_COMPUTE: // R-Type
                 begin
