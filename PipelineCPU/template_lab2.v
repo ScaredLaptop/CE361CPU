@@ -217,7 +217,6 @@ module ImmGen(
         `ImmSel_I: Imm = { {21{InstWord[31]}}, InstWord[30:25], InstWord[24:21], InstWord[20]};
         `ImmSel_S: Imm = { {21{InstWord[31]}}, InstWord[30:25], InstWord[11:8], InstWord[7]};
         `ImmSel_U: Imm = { InstWord[31], InstWord[30:20], InstWord[19:12], {12{1'b0}} };
-        `ImmSel_I: Imm = { {21{InstWord[31]}}, InstWord[30:25], InstWord[24:21], InstWord[20]};
         `ImmSel_J: Imm = { {12{InstWord[31]}}, InstWord[19:12], InstWord[20], InstWord[30:25], InstWord[24:21], {1{1'b0}}};
         `ImmSel_B: Imm = { {20{InstWord[31]}}, InstWord[7], InstWord[30:25], InstWord[11:8], {1{1'b0}}};
         default: Imm = 32'bx;
@@ -388,15 +387,15 @@ always @(*) begin
                     out = opA + opB;
                 else
                     out = opA - opB;
-            3'b001: out = opA << opB;
+            3'b001: out = opA << opB[4:0];
             3'b010: out = (s_opA < s_opB)? 1 : 0;
             3'b011: out = (opA < opB)? 1 : 0;
             3'b100: out = opA ^ opB;
             3'b101: 
                 if(auxFunc == 7'b0000000)
-                    out = opA >> opB;
+                    out = opA >> opB[4:0];
                 else
-                    out = s_opA >>> opB;
+                    out = s_opA >>> opB[4:0];
             3'b110: out = opA | opB;
             3'b111: out = opA & opB;
             default: begin 

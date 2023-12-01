@@ -2,7 +2,7 @@
 OUT=CPU
 
 # Source files
-SOURCES=template_lab2.v tb_lab2.v lib_lab2.v
+SOURCES=$(wildcard PipelineCPU/*.v)
 
 # Rule for the default target
 all: $(OUT)

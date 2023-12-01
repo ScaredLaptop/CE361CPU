@@ -1,6 +1,6 @@
 module IF_ID_Register(
-    input reg [31:0] PC_if,
-    input reg [31:0] Inst_if,
+    input [31:0] PC_if,
+    input [31:0] Inst_if,
     output reg [31:0] PC_id,
     output reg [31:0] Inst_id,
     input WEN, 
@@ -17,21 +17,21 @@ module IF_ID_Register(
 endmodule // IF_ID_Register
 
 module ID_EX_Register(
-    input reg [31:0] PC_id,
-    input reg [31:0] Inst_id,
-    input reg MemRW_id, 
-    input reg RWrEn_id,
-    input reg MemToReg_id,
-    input reg [1:0] ALUOp_id,
-    input reg [1:0] ALUSrc_id,
-    input reg [1:0] RegDst_id,
-    input reg [2:0] ImmSel_id,
-    input reg ASel_id,
-    input reg BSel_id,
-    input reg [2:0] BranchType_id,
-    input reg JMP_id,
-    input reg BR_id,
-    input reg halt_id,
+    input [31:0] PC_id,
+    input [31:0] Inst_id,
+    input MemRW_id, 
+    input RWrEn_id,
+    input MemToReg_id,
+    input [1:0] ALUOp_id,
+    input [1:0] ALUSrc_id,
+    input [1:0] RegDst_id,
+    input [2:0] ImmSel_id,
+    input ASel_id,
+    input BSel_id,
+    input [2:0] BranchType_id,
+    input JMP_id,
+    input BR_id,
+    input halt_id,
     output reg [31:0] PC_ex,
     output reg [31:0] Inst_ex,
     output reg MemRW_ex,
@@ -61,7 +61,6 @@ module ID_EX_Register(
             ALUSrc_ex <= 0;
             RegDst_ex <= 0;
             ImmSel_ex <= 0;
-            WBSel_ex <= 0;
             ASel_ex <= 0;
             BSel_ex <= 0;
             BranchType_ex <= 0;
@@ -78,7 +77,6 @@ module ID_EX_Register(
             ALUSrc_ex <= ALUSrc_id;
             RegDst_ex <= RegDst_id;
             ImmSel_ex <= ImmSel_id;
-            WBSel_ex <= WBSel_id;
             ASel_ex <= ASel_id;
             BSel_ex <= BSel_id;
             BranchType_ex <= BranchType_id;
@@ -89,15 +87,15 @@ module ID_EX_Register(
 endmodule // ID_EX_Register
 
 module EX_MEM_Register(
-    input reg [31:0] PC_ex,
-    input reg [31:0] Inst_ex,
-    input reg MemRW_ex,
-    input reg RWrEn_ex,
-    input reg MemToReg_ex,
-    input reg JMP_ex,
-    input reg BR_ex,
-    input reg BranchCondTrue_ex,  
-    input reg halt_ex,
+    input [31:0] PC_ex,
+    input [31:0] Inst_ex,
+    input MemRW_ex,
+    input RWrEn_ex,
+    input MemToReg_ex,
+    input JMP_ex,
+    input BR_ex,
+    input BranchCondTrue_ex,  
+    input halt_ex,
     output reg [31:0] PC_mem,
     output reg [31:0] Inst_mem,
     output reg MemRW_mem,
@@ -109,7 +107,7 @@ module EX_MEM_Register(
     output reg halt_mem,
     input WEN, 
     input CLK, 
-    input RST)
+    input RST);
     always @ (negedge CLK or negedge RST)
         if (!RST) begin
             PC_mem <= 0;
@@ -135,11 +133,11 @@ module EX_MEM_Register(
 endmodule // EX_MEM_Register
 
 module MEM_WB_Register(
-    input reg [31:0] PC_mem,
-    input reg [31:0] Inst_mem,
-    input reg RegWrite_mem,
-    input reg MemToReg_mem,
-    input reg halt_mem,
+    input [31:0] PC_mem,
+    input [31:0] Inst_mem,
+    input RegWrite_mem,
+    input MemToReg_mem,
+    input halt_mem,
     output reg [31:0] PC_wb,
     output reg [31:0] Inst_wb,
     output reg RegWrite_wb,
@@ -147,7 +145,7 @@ module MEM_WB_Register(
     output reg halt_wb,
     input WEN, 
     input CLK, 
-    input RST)
+    input RST);
     always @ (negedge CLK or negedge RST)
         if (!RST) begin
             PC_wb <= 0;
