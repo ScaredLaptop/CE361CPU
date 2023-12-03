@@ -2,6 +2,7 @@ module IDecode(
     input halt_in_id,
     input [31:0] instr_in_id,
     input [31:0] pc_in_id,
+    input [31:0] RWrData,
     output reg halt_out_id,
     output reg [31:0] pc_out_id,
     output reg MemRW_out_id,
@@ -18,6 +19,9 @@ module IDecode(
     output reg BR_out_id,
     output reg [2:0] MemSize_out_id,
     output reg [31:0] Immediate_out_id,
+    output reg [31:0] Rdata1_out_id,
+    output reg [31:0] Rdata2_out_id,
+    output reg [4:0] Rdst_out_id,
     output reg halt_out_id,
     input clk,
     input rst);
@@ -64,8 +68,18 @@ ImmGen immGenerator(
     .Imm(Imm_out_id)
 );
 
+// Get registers
+wire RWrEn_Halt_Gated;
+assign RWrEn_Halt_Gated = (halt | RWrEn_out_id);
+RegFile RF(.AddrA(Rsrc1), .DataOutA(Rdata1), 
+        .AddrB(Rsrc2), .DataOutB(Rdata2), 
+        .AddrW(Rdst), .DataInW(RWrData), .WenW(RWrEn_Halt_Gated), .CLK(clk));
+
 // Propogate and assign halt
 assign halt_out_id = halt_in_id | invalidOpcode | invalidOpSize;
+assign Rdst_out_id = Rdst;
+assign Rdata1_out_id = Rdata1;
+assign Rdata2_out_id = Rdata2;
 endmodule // IDecode
 
 module OpDecoder(

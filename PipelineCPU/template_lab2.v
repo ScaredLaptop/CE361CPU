@@ -93,42 +93,10 @@ module SingleCycleCPU(halt, clk, rst);
    assign MemRW_Halt_Gated = (halt | MemRW);
    DataMem DMEM(.Addr(ALUOutput), .Size(MemSize), .DataIn(Rdata2), .DataOut(DataWord), .WEN(MemRW_Halt_Gated), .CLK(clk));
 
-   wire RWrEn_Halt_Gated;
-   assign RWrEn_Halt_Gated = (halt | RWrEn);
-   RegFile RF(.AddrA(Rsrc1), .DataOutA(Rdata1), 
-          .AddrB(Rsrc2), .DataOutB(Rdata2), 
-          .AddrW(Rdst), .DataInW(RWrData), .WenW(RWrEn_Halt_Gated), .CLK(clk));
-   // Instruction Decode
-   assign opcode = InstWord[6:0];   
-   assign Rdst = InstWord[11:7]; 
-   assign Rsrc1 = InstWord[19:15]; 
-   assign Rsrc2 = InstWord[24:20];
-   assign funct3 = InstWord[14:12];  // R-Type, I-Type, S-Type
-   assign funct7 = InstWord[31:25];  // R-Type
-
-   assign ALU_A = (ASel == 1'b0) ? Rdata1 : PC; 
-   assign ALU_B = (BSel == 1'b0) ? Rdata2 : Imm;
-   wire invalidALUOp;
-   ExecutionUnit EU(.out(ALUOutput), .opA(ALU_A), .opB(ALU_B), .func(funct3), .auxFunc(funct7), .opcode(opcode), .halt(invalidALUOp));
-
 
    // Write Back signal generation
    assign RWrData = (WBSel == `WBSel_ALU) ? ALUOutput : (WBSel == `WBSel_PC4) ? PC + 4 : (WBSel == `WBSel_Mem) ? LoadExtended : Imm;
 
-   // Immediate generation
-   wire [31:0] Imm;
-   ImmGen IG(.InstWord(InstWord), .ImmSel(ImmSel), .Imm(Imm));   
-
-   // Branch Comparison TODO: support unsigned
-   wire BR;
-   wire invalidBranchOp;
-   BranchComparison BC(
-    .Rdata1(Rdata1),
-    .Rdata2(Rdata2),
-    .funct3(funct3),
-    .BR(BR),
-    .halt(invalidBranchOp)
-    );
 
 endmodule // SingleCycleCPU
 
@@ -156,90 +124,5 @@ always @(*) begin
    end
 endmodule
 
-module ImmGen(
-   input [31:0] InstWord,
-   input [2:0]  ImmSel, 
-   output reg [31:0] Imm);
-   always @(*) 
-   case(ImmSel)
-        `ImmSel_I: Imm = { {21{InstWord[31]}}, InstWord[30:25], InstWord[24:21], InstWord[20]};
-        `ImmSel_S: Imm = { {21{InstWord[31]}}, InstWord[30:25], InstWord[11:8], InstWord[7]};
-        `ImmSel_U: Imm = { InstWord[31], InstWord[30:20], InstWord[19:12], {12{1'b0}} };
-        `ImmSel_J: Imm = { {12{InstWord[31]}}, InstWord[19:12], InstWord[20], InstWord[30:25], InstWord[24:21], {1{1'b0}}};
-        `ImmSel_B: Imm = { {20{InstWord[31]}}, InstWord[7], InstWord[30:25], InstWord[11:8], {1{1'b0}}};
-        default: Imm = 32'bx;
-    endcase
-endmodule
-// Module which determines whether a branch should be taken
-module BranchComparison(
-    input [31:0] Rdata1,
-    input [31:0] Rdata2,
-    input [2:0] funct3,
-    output reg BR,
-    output reg halt
-);
-wire signed [31:0]  Rdata1_s;
-wire signed [31:0] Rdata2_s;
-assign Rdata1_s = Rdata1;
-assign Rdata2_s = Rdata2;
-always @(*) begin
-    halt <= 1'b0;
-    case(funct3)
-        `BEQ: BR = (Rdata1_s == Rdata2_s)? 1 : 0;
-        `BNE: BR = (Rdata1_s != Rdata2_s)? 1 : 0;
-        `BLT: BR = (Rdata1_s < Rdata2_s)? 1 : 0;
-        `BGE: BR = (Rdata1_s >= Rdata2_s)? 1 : 0;
-        `BLTU: BR = (Rdata1 < Rdata2)? 1 : 0;
-        `BGEU: BR = (Rdata1 >= Rdata2)? 1 : 0;
-        default: begin BR = 1'bx;
-            halt <= 1'b1;
-        end
-    endcase
-end
-endmodule
 
-
-
-// ExecutionUnit
-module ExecutionUnit(out, opA, opB, func, auxFunc, opcode, halt);
-output reg [31:0] out;
-input [31:0] opA, opB;
-input [2:0] func;
-input [6:0] auxFunc;
-input [6:0] opcode;
-output reg halt;
-// Place your code here
-wire signed [31:0] s_opA, s_opB;
-assign s_opA = opA;
-assign s_opB = opB;
-always @(*) begin
-    halt <= 1'b0;
-    if(opcode == `OPCODE_COMPUTE || opcode == `OPCODE_COMPUTE_IMM) begin
-        case (func)
-            3'b000: 
-                if(auxFunc == 7'b0000000 || opcode == `OPCODE_COMPUTE_IMM)
-                    out = opA + opB;
-                else
-                    out = opA - opB;
-            3'b001: out = opA << opB[4:0];
-            3'b010: out = (s_opA < s_opB)? 1 : 0;
-            3'b011: out = (opA < opB)? 1 : 0;
-            3'b100: out = opA ^ opB;
-            3'b101: 
-                if(auxFunc == 7'b0000000)
-                    out = opA >> opB[4:0];
-                else
-                    out = s_opA >>> opB[4:0];
-            3'b110: out = opA | opB;
-            3'b111: out = opA & opB;
-            default: begin 
-                halt <= 1'b1;
-                out = 32'b0;
-            end
-        endcase
-    end
-    else
-        out = opA + opB;
-end
-endmodule // ExecutionUnit
 
