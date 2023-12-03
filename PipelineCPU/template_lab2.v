@@ -75,7 +75,6 @@ module SingleCycleCPU(halt, clk, rst);
     wire unalignedPC;
     wire unalignedAccess;
     wire invalidSize;
-   assign unalignedPC = (~(PC[0] == 1'b0)) | (~(PC[1] == 1'b0));
    SizeModule SM(.funct3(funct3),
                 .DataWord(DataWord),
                 .MemSize(MemSize),
@@ -85,7 +84,7 @@ module SingleCycleCPU(halt, clk, rst);
     assign invalidLoadStore = (opcode == `OPCODE_LOAD || opcode == `OPCODE_STORE)? invalidSize : 0;
    assign halt = invalidOpcode | unalignedPC | unalignedAccess | invalidBranch | invalidALUOp | invalidLoadStore;
    // System State (everything is neg assert)
-   InstMem IMEM(.Addr(PC), .Size(`SIZE_WORD), .DataOut(InstWord), .CLK(clk));
+   
    assign unalignedAccess = (opcode == `OPCODE_LOAD || opcode == `OPCODE_STORE)? 
                     (((MemSize == `SIZE_HWORD && ALUOutput[0] != 1'b0) || (MemSize == `SIZE_WORD && (ALUOutput[0] != 1'b0 || ALUOutput[0] != 1'b0)))?
                         1: 0) :0;
@@ -99,9 +98,6 @@ module SingleCycleCPU(halt, clk, rst);
    RegFile RF(.AddrA(Rsrc1), .DataOutA(Rdata1), 
           .AddrB(Rsrc2), .DataOutB(Rdata2), 
           .AddrW(Rdst), .DataInW(RWrData), .WenW(RWrEn_Halt_Gated), .CLK(clk));
-
-   Reg PC_REG(.Din(NPC), .Qout(PC), .WEN(1'b0), .CLK(clk), .RST(rst));
-
    // Instruction Decode
    assign opcode = InstWord[6:0];   
    assign Rdst = InstWord[11:7]; 
@@ -133,50 +129,15 @@ module SingleCycleCPU(halt, clk, rst);
     .BR(BR),
     .halt(invalidBranchOp)
     );
-   // Fetch Address Datapath
-   PCUpdate PCU(.PCSel(PCSel), .PC(PC), .PC_Jump(ALUOutput), .NPC(NPC)); 
-   
-   // Opcode decoder
-   OpDecoder OD(.op(opcode),
-    .funct3(funct3),
-    .funct7(funct7),
-    .BR(BR),
-    .PCSel(PCSel),
-    .ImmSel(ImmSel), 
-    .ASel(ASel), 
-    .BSel(BSel), 
-    .MemRW(MemRW), 
-    .RWrEn(RWrEn), 
-    .WBSel(WBSel),
-    .halt(invalidOpcode),
-    .instr(instr));
+
 endmodule // SingleCycleCPU
 
-module AlignCheck(input wire [31:0] PC, output reg halt);
-    always @(*) begin
-        halt <= 1'b0;
-        if(PC[0] != 0 || PC[1] != 0)
-            halt <= 1'b1; 
-    end
-endmodule
 module SizeModule(input [2:0] funct3,
                 input [31:0] DataWord,
                 output reg [1:0] MemSize,
                 output reg [31:0] LoadExtended,
                 output reg halt
                 );
-always @(*) begin
-    halt <= 1'b0;
-    case (funct3)
-        3'b000: MemSize = `SIZE_BYTE;
-        3'b001: MemSize = `SIZE_HWORD;
-        3'b010: MemSize = `SIZE_WORD;
-        default: begin 
-            halt <= 1'b1;
-            MemSize = 2'bxx;
-        end
-    endcase
-   end
 
 always @(*) begin
     halt <= 1'b0;
@@ -195,19 +156,6 @@ always @(*) begin
    end
 endmodule
 
-module PCUpdate(
-    input PCSel,
-    input [31:0] PC,
-    input [31:0] PC_Jump,
-    output reg [31:0] NPC
-);
-    always @(*) begin
-        case(PCSel)
-            `PCSel_4: NPC <= PC + 4;
-            `PCSel_ALU: NPC <= PC_Jump;
-        endcase
-    end
-endmodule
 module ImmGen(
    input [31:0] InstWord,
    input [2:0]  ImmSel, 
@@ -250,121 +198,7 @@ always @(*) begin
 end
 endmodule
 
-module OpDecoder(
-   input [6:0] op,
-   input [2:0] funct3,
-   input [6:0] funct7,
-   input BR,
-   output reg PCSel,
-   output reg [2:0] ImmSel, 
-   output reg ASel, 
-   output reg BSel, 
-   output reg MemRW, 
-   output reg RWrEn, 
-   output reg [1:0] WBSel,
-   output reg halt,
-   output reg [4:0]instr
-);
-   always @(*) begin
-      halt <= 1'b0;
-      case (op)
-            `OPCODE_COMPUTE: // R-Type
-                begin
-                PCSel <= `PCSel_4;
-                ImmSel <= 3'bx;
-                ASel <= `ASel_Reg;
-                BSel <= `BSel_Reg;
-                MemRW <= `MemRW_Read;
-                RWrEn <= `RWrEn_Enable;
-                WBSel <= `WBSel_ALU;
-                end
-            `OPCODE_COMPUTE_IMM: // I-Type
-                begin
-                PCSel <= `PCSel_4;
-                ImmSel <= `ImmSel_I;
-                ASel <= `ASel_Reg;
-                BSel <= `BSel_IMM;
-                MemRW <= `MemRW_Read;
-                RWrEn <= `RWrEn_Enable;
-                WBSel <= `WBSel_ALU;
-                end
-            `OPCODE_BRANCH: 
-               begin
-                PCSel <= (BR) ? `PCSel_ALU : `PCSel_4;
-                ImmSel <= `ImmSel_B;
-                ASel <= `ASel_PC;
-                BSel <= `BSel_IMM;
-                MemRW <= `MemRW_Read;
-                RWrEn <= `RWrEn_Disable;
-                WBSel <= 2'bxx;
-               end
-            `OPCODE_LOAD:
-               begin
-               PCSel <= `PCSel_4;
-               ImmSel <= `ImmSel_I;
-               ASel <= `ASel_Reg;
-               BSel <= `BSel_IMM;
-               MemRW <= `MemRW_Read;
-               RWrEn <= `RWrEn_Enable;
-               WBSel <= `WBSel_Mem;
-               end
-            `OPCODE_STORE:
-               begin
-               PCSel <= `PCSel_4;
-               ImmSel <= `ImmSel_S;
-               ASel <= `ASel_Reg;
-               BSel <= `BSel_IMM;
-               MemRW <= `MemRW_Write;
-               RWrEn <= `RWrEn_Disable;
-               WBSel <= 2'bxx;
-               end
-            `OPCODE_JMP:
-                begin
-                    PCSel <= `PCSel_ALU;
-                    ImmSel <= `ImmSel_J;
-                    ASel <= `ASel_PC;
-                    BSel <= `BSel_IMM;
-                    MemRW <= `MemRW_Read;
-                    RWrEn <= `RWrEn_Enable;
-                    WBSel <= `WBSel_PC4;
-                end
-            `OPCODE_JMP_LINK:
-                begin
-                    PCSel <= `PCSel_ALU;
-                    ImmSel <= `ImmSel_I;
-                    ASel <= `ASel_Reg;
-                    BSel <= `BSel_IMM;
-                    MemRW <= `MemRW_Read;
-                    RWrEn <= `RWrEn_Enable;
-                    WBSel <= `WBSel_PC4;
-                end
-            `OPCODE_AUIPC:
-                begin
-                    PCSel <= `PCSel_4;
-                    ImmSel <= `ImmSel_U;
-                    ASel <= `ASel_PC;
-                    BSel <= `BSel_IMM;
-                    MemRW <= `MemRW_Read;
-                    RWrEn <= `RWrEn_Enable;
-                    WBSel <= `WBSel_ALU;
-                end
-            `OPCODE_LUI:
-                begin
-                    PCSel <= `PCSel_4;
-                    ImmSel <= `ImmSel_U;
-                    ASel <= `ASel_Reg;
-                    BSel <= `BSel_IMM;
-                    MemRW <= `MemRW_Read;
-                    RWrEn <= `RWrEn_Enable;
-                    WBSel <= `WBSel_Imm;
-                end
-            default:
-            begin
-               halt <= 1'b1;
-            end
-        endcase
-   end
-endmodule
+
 
 // ExecutionUnit
 module ExecutionUnit(out, opA, opB, func, auxFunc, opcode, halt);

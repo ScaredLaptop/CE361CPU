@@ -31,6 +31,9 @@ module ID_EX_Register(
     input [2:0] BranchType_id,
     input JMP_id,
     input BR_id,
+    input [1:0] WBSel_id,
+    input [31:0] Immediate_id,
+    input [2:0] MemSize_id,
     input halt_id,
     output reg [31:0] PC_ex,
     output reg [31:0] Inst_ex,
@@ -46,6 +49,9 @@ module ID_EX_Register(
     output reg [2:0] BranchType_ex,
     output reg JMP_ex,
     output reg BR_ex,
+    output reg [1:0] WBSel_ex,
+    output reg [31:0] Immediate_ex,
+    output reg [2:0] MemSize_ex,
     output reg halt_ex,
     input WEN, 
     input CLK, 
@@ -66,6 +72,9 @@ module ID_EX_Register(
             BranchType_ex <= 0;
             JMP_ex <= 0;
             BR_ex <= 0;
+            WBSel_ex <= 0;
+            Immediate_ex <= 0;
+            MemSize_ex <= 0;
             halt_ex <= 0;
         end else if (!WEN) begin
             PC_ex <= PC_id;
@@ -82,6 +91,9 @@ module ID_EX_Register(
             BranchType_ex <= BranchType_id;
             JMP_ex <= JMP_id;
             BR_ex <= BR_id;
+            WBSel_ex <= WBSel_id;
+            Immediate_ex <= Immediate_id;
+            MemSize_ex <= MemSize_id;
             halt_ex <= halt_id;
         end
 endmodule // ID_EX_Register
@@ -95,6 +107,8 @@ module EX_MEM_Register(
     input JMP_ex,
     input BR_ex,
     input BranchCondTrue_ex,  
+    input [1:0] WBSel_ex,
+    input [2:0] MemSize_ex,
     input halt_ex,
     output reg [31:0] PC_mem,
     output reg [31:0] Inst_mem,
@@ -104,6 +118,8 @@ module EX_MEM_Register(
     output reg JMP_mem,
     output reg BR_mem,
     output reg BranchCondTrue_mem,
+    output reg [1:0] WBSel_mem,
+    output reg [2:0] MemSize_mem,
     output reg halt_mem,
     input WEN, 
     input CLK, 
@@ -118,6 +134,8 @@ module EX_MEM_Register(
             JMP_mem <= 0;
             BR_mem <= 0;
             BranchCondTrue_mem <= 0;
+            WBSel_mem <= 0;
+            MemSize_mem <= 0;
             halt_mem <= 0;
         end else if (!WEN) begin
             PC_mem <= PC_ex;
@@ -128,6 +146,8 @@ module EX_MEM_Register(
             JMP_mem <= JMP_ex;
             BR_mem <= BR_ex;
             BranchCondTrue_mem <= BranchCondTrue_ex;
+            WBSel_mem <= WBSel_ex;
+            MemSize_mem <= MemSize_ex;
             halt_mem <= halt_ex;
         end
 endmodule // EX_MEM_Register
@@ -137,11 +157,15 @@ module MEM_WB_Register(
     input [31:0] Inst_mem,
     input RegWrite_mem,
     input MemToReg_mem,
+    input [1:0] WBSel_mem,
+    input [2:0] MemSize_mem,
     input halt_mem,
     output reg [31:0] PC_wb,
     output reg [31:0] Inst_wb,
     output reg RegWrite_wb,
     output reg MemToReg_wb,
+    output reg [1:0] WBSel_wb,
+    output reg [2:0] MemSize_wb,
     output reg halt_wb,
     input WEN, 
     input CLK, 
@@ -152,12 +176,16 @@ module MEM_WB_Register(
             Inst_wb <= 0;
             RegWrite_wb <= 0;
             MemToReg_wb <= 0;
+            WBSel_wb <= 0;
+            MemSize_wb <= 0;
             halt_wb <= 0;
         end else if (!WEN) begin
             PC_wb <= PC_mem;
             Inst_wb <= Inst_mem;
             RegWrite_wb <= RegWrite_mem;
             MemToReg_wb <= MemToReg_mem;
+            WBSel_wb <= WBSel_mem;
+            MemSize_wb <= MemSize_mem;
             halt_wb <= halt_mem;
         end
 endmodule // MEM_WB_Register
