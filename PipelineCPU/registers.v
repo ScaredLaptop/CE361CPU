@@ -21,7 +21,6 @@ module IF_ID_Register(
             halt_id <= halt_if & valid_if;
             PC_id <= PC_if;
             Inst_id <= Inst_if;
-            valid_id <= valid_if;
         end
 endmodule // IF_ID_Register
 
@@ -32,7 +31,7 @@ module ID_EX_Register(
     input RWrEn_id,
     input [1:0] ALUOp_id,
     input [1:0] ALUSrc_id,
-    input [1:0] RegDst_id,
+    input [4:0] RegDst_id,
     input [2:0] ImmSel_id,
     input ASel_id,
     input BSel_id,
@@ -209,6 +208,8 @@ module MEM_WB_Register(
             Immediate_wb <= 0;
             ALUOutput_wb <= 0;
             halt_wb <= 0;
+            Rdst_wb <= 0;
+            RWrEn_wb <= 1;
         end else if (!WEN) begin
             valid_wb <= valid_mem;
             PC_wb <= PC_mem;
@@ -217,6 +218,8 @@ module MEM_WB_Register(
             LoadExtended_wb <= LoadExtended_mem;
             Immediate_wb <= Immediate_mem;  
             ALUOutput_wb <= ALUOutput_mem;
+            Rdst_wb <= Rdst_mem;
+            RWrEn_wb <= RWrEn_mem;
             halt_wb <= halt_mem && valid_mem;
         end
 endmodule // MEM_WB_Register

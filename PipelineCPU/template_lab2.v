@@ -88,7 +88,6 @@ wire halt_out_id, MemRW_Out_id;
 wire RWrEn_out_id;
 wire [1:0] ALUOp_out_id;
 wire [1:0] ALUSrc_out_id;
-wire [1:0] RegDst_out_id;
 wire [2:0] ImmSel_out_id;
 wire ASel_out_id, BSel_out_id;
 wire [2:0] BranchType_out_id;
@@ -103,14 +102,14 @@ IDecode decoder(
    .instr_in_id(instr_in_id),
    .pc_in_id(PC_in_id),
    .RWrData_in_id(RWrData),
-   .RW_in_id(RW_in_id),
+   .RWrEn_in_wb(RWrEn_in_wb),
+   .RW_in_wb(Rdst_in_wb),
    .halt_out_id(halt_out_id),
    .pc_out_id(PC_out_id),
    .MemRW_out_id(MemRW_Out_id),
    .RWrEn_out_id(RWrEn_out_id),
    .ALUOp_out_id(ALUOp_out_id),
    .ALUSrc_out_id(ALUSrc_out_id),
-   .RegDst_out_id(RegDst_out_id),
    .ImmSel_out_id(ImmSel_out_id),
    .ASel_out_id(ASel_out_id),
    .BSel_out_id(BSel_out_id),
@@ -132,7 +131,7 @@ wire MemRW_in_ex, RWrEn_in_ex;
 wire [1:0] WBSel_in_ex;
 wire [1:0] ALUOp_in_ex;
 wire [1:0] ALUSrc_in_ex;
-wire [4:0] RegDst_in_ex;
+wire [4:0] Rdst_in_ex;
 wire [2:0] ImmSel_in_ex;
 wire ASel_in_ex, BSel_in_ex;
 wire [2:0] BranchType_in_ex;
@@ -150,7 +149,7 @@ ID_EX_Register secondStage(
    .RWrEn_id(RWrEn_out_id),
    .ALUOp_id(ALUOp_out_id),
    .ALUSrc_id(ALUSrc_out_id),
-   .RegDst_id(RegDst_out_id),
+   .RegDst_id(Rdst_out_id),
    .ImmSel_id(ImmSel_out_id),
    .ASel_id(ASel_out_id),
    .BSel_id(BSel_out_id),
@@ -169,7 +168,7 @@ ID_EX_Register secondStage(
    .RWrEn_ex(RWrEn_in_ex),
    .ALUOp_ex(ALUOp_in_ex),
    .ALUSrc_ex(ALUSrc_in_ex),
-   .RegDst_ex(RegDst_in_ex),
+   .RegDst_ex(Rdst_in_ex),
    .ImmSel_ex(ImmSel_in_ex),
    .Rdata1_ex(Rdata1_in_ex),
    .Rdata2_ex(Rdata2_in_ex),
@@ -239,7 +238,7 @@ EX_MEM_Register thirdStage(
    .MemSize_ex(MemSize_in_ex),
    .ALUOutput_ex(ALUOutput_out_ex),
    .Immediate_ex(Immediate_out_ex),
-   .Rdst_ex(RegDst_in_ex),
+   .Rdst_ex(Rdst_in_ex),
    .Rdata2_ex(Rdata2_out_ex),
    .halt_ex(halt_out_ex),
    .valid_ex(valid_ex),

@@ -3,14 +3,14 @@ module IDecode(
     input [31:0] instr_in_id,
     input [31:0] pc_in_id,
     input [31:0] RWrData_in_id,
-    input [4:0] RW_in_id,
+    input RWrEn_in_wb,
+    input [4:0] RW_in_wb,
     output halt_out_id,
     output [31:0] pc_out_id,
     output MemRW_out_id,
     output RWrEn_out_id,
     output [1:0] ALUOp_out_id,
     output [1:0] ALUSrc_out_id,
-    output [1:0] RegDst_out_id,
     output [2:0] ImmSel_out_id,
     output ASel_out_id,
     output BSel_out_id,
@@ -72,10 +72,10 @@ ImmGen immGenerator(
 wire RWrEn_Halt_Gated;
 wire halt;
 assign halt = invalidOpcode | invalidOpSize;
-assign RWrEn_Halt_Gated = (halt | RWrEn_out_id);
+assign RWrEn_Halt_Gated = (RWrEn_in_wb); // TODO: Halt Gate
 RegFile RF(.AddrA(Rsrc1), .DataOutA(Rdata1_out_id), 
         .AddrB(Rsrc2), .DataOutB(Rdata2_out_id), 
-        .AddrW(Rdst), .DataInW(RWrData_in_id), .WenW(RWrEn_Halt_Gated), .CLK(clk));
+        .AddrW(RW_in_wb), .DataInW(RWrData_in_id), .WenW(RWrEn_Halt_Gated), .CLK(clk));
 
 // Propogate and assign halt
 assign halt_out_id = halt_in_id | invalidOpcode | invalidOpSize;
