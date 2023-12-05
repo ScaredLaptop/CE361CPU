@@ -1,5 +1,4 @@
 // Testbench for Northwestern - CompEng 361 - Lab2
-
 module tb;
    reg clk, rst;
    reg exit;

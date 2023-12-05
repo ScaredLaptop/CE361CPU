@@ -51,7 +51,7 @@ wire PCSel;
 wire [31:0] PC_out_if;
 wire [31:0] PC4_out_if;
 wire [31:0] instr_out_if;
-
+wire [31:0] DONE;
 IFetch fetchStage(
    .halt_in_if(1'b0),
    .PCSel_in_if(PCSel),

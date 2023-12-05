@@ -8,7 +8,6 @@ module IFetch(
     output [31:0] instr_out_if,
     input clk,
     input rst);
-
 wire [31:0] NPC;
 wire [31:0] PC;
 Reg PC_REG(.Din(NPC), .Qout(PC), .WEN(1'b0), .CLK(clk), .RST(rst));
@@ -21,11 +20,8 @@ wire unalignedPC;
 assign unalignedPC = (~(PC[0] == 1'b0)) | (~(PC[1] == 1'b0));
 assign halt_out_if = halt_in_if | unalignedPC;
 
-// Set next PC
-assign NPC = (rst == 1'b1) ? 32'b0 :
+assign NPC = (rst == 1'b0) ? 32'b0 :
              (halt_out_if == 1'b1) ? PC :
              (PCSel_in_if == `PCSel_ALU) ? pc_br_jmp_target_in_if :
-             PC + 4;
-
-
+             pc4_out_if;
 endmodule // IFetch

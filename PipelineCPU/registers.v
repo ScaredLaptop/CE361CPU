@@ -11,7 +11,7 @@ module IF_ID_Register(
     input CLK, 
     input RST);
     always @ (negedge CLK or negedge RST)
-        if (!RST) begin
+        if (!RST || (valid_if == 1'b0)) begin
             halt_id <= 0;
             PC_id <= 0;
             Inst_id <= 0;
@@ -67,8 +67,9 @@ module ID_EX_Register(
     input WEN, 
     input CLK, 
     input RST);
+    wire [2:0] test;
     always @ (negedge CLK or negedge RST)
-        if (!RST) begin
+        if (!RST || (valid_id == 1'b0)) begin
             valid_ex <= 0;
             PC_ex <= 0;
             Inst_ex <= 0;
@@ -143,7 +144,7 @@ module EX_MEM_Register(
     input CLK, 
     input RST);
     always @ (negedge CLK or negedge RST)
-        if (!RST) begin
+        if (!RST || !valid_ex) begin
             valid_mem <= 0;
             PC_mem <= 0;
             Inst_mem <= 0;
@@ -199,7 +200,7 @@ module MEM_WB_Register(
     input CLK, 
     input RST);
     always @ (negedge CLK or negedge RST)
-        if (!RST) begin
+        if (!RST || !valid_mem) begin
             valid_wb <= 0;
             PC_wb <= 0;
             Inst_wb <= 0;
