@@ -241,7 +241,7 @@ EX_MEM_Register thirdStage(
    .WBSel_ex(WBSel_in_ex),
    .MemSize_ex(MemSize_in_ex),
    .ALUOutput_ex(ALUOutput_out_ex),
-   .Immediate_ex(Immediate_out_ex),
+   .Immediate_ex(Immediate_in_ex),
    .Rdst_ex(Rdst_in_ex),
    .Rdata2_ex(Rdata2_out_ex),
    .halt_ex(halt_out_ex),
@@ -338,3 +338,6 @@ IWB writebackModule(
 assign halt = halt_in_wb & valid_wb;
 
 endmodule // SingleCycleCPU
+
+module HazardDetect();
+endmodule

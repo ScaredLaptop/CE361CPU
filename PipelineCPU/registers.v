@@ -183,6 +183,7 @@ module EX_MEM_Register(
             ALUoutput_mem <= 0;
             Rdst_mem <= 0;
             Rdata2_mem <= 0;
+            Immediate_mem <= 0;
             halt_mem <= 0;
         end else if (!WEN) begin
             valid_mem <= valid_ex;
@@ -194,6 +195,7 @@ module EX_MEM_Register(
             WBSel_mem <= WBSel_ex;
             MemSize_mem <= MemSize_ex;
             ALUoutput_mem <= ALUOutput_ex;
+            Immediate_mem <= Immediate_ex;
             Rdst_mem <= Rdst_ex;
             Rdata2_mem <= Rdata2_ex;
             halt_mem <= halt_ex && valid_ex;

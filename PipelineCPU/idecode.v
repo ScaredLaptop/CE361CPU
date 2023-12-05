@@ -71,14 +71,14 @@ ImmGen immGenerator(
 // Get registers
 wire RWrEn_Halt_Gated;
 wire halt;
-assign halt = invalidOpcode | invalidOpSize;
+assign halt = invalidOpcode | (((opcode == `OPCODE_STORE || opcode == `OPCODE_LOAD) && invalidOpSize)? 1 : 0);
 assign RWrEn_Halt_Gated = (RWrEn_in_wb); // TODO: Halt Gate
 RegFile RF(.AddrA(Rsrc1), .DataOutA(Rdata1_out_id), 
         .AddrB(Rsrc2), .DataOutB(Rdata2_out_id), 
         .AddrW(RW_in_wb), .DataInW(RWrData_in_id), .WenW(RWrEn_Halt_Gated), .CLK(clk));
 
 // Propogate and assign halt
-assign halt_out_id = halt_in_id | invalidOpcode | invalidOpSize;
+assign halt_out_id = halt_in_id | invalidOpcode | (((opcode == `OPCODE_STORE || opcode == `OPCODE_LOAD) && invalidOpSize)? 1 : 0);
 assign Rdst_out_id = Rdst;
 endmodule // IDecode
 
