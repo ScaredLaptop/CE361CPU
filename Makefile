@@ -2,7 +2,8 @@
 OUT=CPU
 
 # Source files
-SOURCES=$(wildcard PipelineCPU/*.v)
+SOURCES=PipelineCPU/template_lab2.v $(filter-out PipelineCPU/template_lab2.v, $(wildcard PipelineCPU/*.v))
+
 
 # Rule for the default target
 all: $(OUT)

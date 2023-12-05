@@ -2,27 +2,26 @@ module IDecode(
     input halt_in_id,
     input [31:0] instr_in_id,
     input [31:0] pc_in_id,
-    input [31:0] RWrData,
-    output reg halt_out_id,
-    output reg [31:0] pc_out_id,
-    output reg MemRW_out_id,
-    output reg RWrEn_out_id,
-    output reg MemToReg_out_id,
-    output reg [1:0] ALUOp_out_id,
-    output reg [1:0] ALUSrc_out_id,
-    output reg [1:0] RegDst_out_id,
-    output reg [2:0] ImmSel_out_id,
-    output reg ASel_out_id,
-    output reg BSel_out_id,
-    output reg [2:0] BranchType_out_id,
-    output reg JMP_out_id,
-    output reg BR_out_id,
-    output reg [2:0] MemSize_out_id,
-    output reg [31:0] Immediate_out_id,
-    output reg [31:0] Rdata1_out_id,
-    output reg [31:0] Rdata2_out_id,
-    output reg [4:0] Rdst_out_id,
-    output reg halt_out_id,
+    input [31:0] RWrData_in_id,
+    input [4:0] RW_in_id,
+    output halt_out_id,
+    output [31:0] pc_out_id,
+    output MemRW_out_id,
+    output RWrEn_out_id,
+    output [1:0] ALUOp_out_id,
+    output [1:0] ALUSrc_out_id,
+    output [1:0] RegDst_out_id,
+    output [2:0] ImmSel_out_id,
+    output ASel_out_id,
+    output BSel_out_id,
+    output JMP_out_id,
+    output BR_out_id,
+    output [1:0] MemSize_out_id,
+    output [31:0] Immediate_out_id,
+    output [31:0] Rdata1_out_id,
+    output [31:0] Rdata2_out_id,
+    output [4:0] Rdst_out_id,
+    output [1:0] WBSel_out_id,
     input clk,
     input rst);
 
@@ -37,7 +36,6 @@ assign Rsrc1 = instr_in_id[19:15];
 assign Rsrc2 = instr_in_id[24:20];
 assign funct3 = instr_in_id[14:12];
 assign funct7 = instr_in_id[31:25];  
-
 // Generate signals
 wire invalidOpcode;
 OpDecoder decoder(
@@ -50,36 +48,38 @@ OpDecoder decoder(
     .MemRW(MemRW_out_id),
     .RWrEn(RWrEn_out_id),
     .WBSel(WBSel_out_id),
-    .halt(invalidOpcode),
+    .BR_out_id(BR_out_id),
+    .JMP_out_id(JMP_out_id),
+    .halt(invalidOpcode)
 );
 
 // Get size of instr
 wire invalidOpSize;
 SizeModule size(
     .funct3(funct3),
-    .MemSize(MemSize_out_id)
-    .halt(invalidOpSize),
+    .MemSize(MemSize_out_id),
+    .halt(invalidOpSize)
 );
 
 // Generate immediate
 ImmGen immGenerator(
     .InstWord(instr_in_id),
     .ImmSel(ImmSel_out_id),
-    .Imm(Imm_out_id)
+    .Imm(Immediate_out_id)
 );
 
 // Get registers
 wire RWrEn_Halt_Gated;
+wire halt;
+assign halt = invalidOpcode | invalidOpSize;
 assign RWrEn_Halt_Gated = (halt | RWrEn_out_id);
-RegFile RF(.AddrA(Rsrc1), .DataOutA(Rdata1), 
-        .AddrB(Rsrc2), .DataOutB(Rdata2), 
-        .AddrW(Rdst), .DataInW(RWrData), .WenW(RWrEn_Halt_Gated), .CLK(clk));
+RegFile RF(.AddrA(Rsrc1), .DataOutA(Rdata1_out_id), 
+        .AddrB(Rsrc2), .DataOutB(Rdata2_out_id), 
+        .AddrW(Rdst), .DataInW(RWrData_in_id), .WenW(RWrEn_Halt_Gated), .CLK(clk));
 
 // Propogate and assign halt
 assign halt_out_id = halt_in_id | invalidOpcode | invalidOpSize;
 assign Rdst_out_id = Rdst;
-assign Rdata1_out_id = Rdata1;
-assign Rdata2_out_id = Rdata2;
 endmodule // IDecode
 
 module OpDecoder(
@@ -92,13 +92,17 @@ module OpDecoder(
    output reg MemRW, 
    output reg RWrEn, 
    output reg [1:0] WBSel,
+   output reg BR_out_id,
+   output reg JMP_out_id,
    output reg halt
 );
    always @(*) begin
-      halt <= 1'b0;
       case (op)
             `OPCODE_COMPUTE: // R-Type
                 begin
+                halt <= 1'b0;
+                BR_out_id <= 1'b0;
+                JMP_out_id <= 1'b0;
                 ImmSel <= 3'bx;
                 ASel <= `ASel_Reg;
                 BSel <= `BSel_Reg;
@@ -108,6 +112,9 @@ module OpDecoder(
                 end
             `OPCODE_COMPUTE_IMM: // I-Type
                 begin
+                halt <= 1'b0;
+                BR_out_id <= 1'b0;
+                JMP_out_id <= 1'b0;
                 ImmSel <= `ImmSel_I;
                 ASel <= `ASel_Reg;
                 BSel <= `BSel_IMM;
@@ -117,6 +124,9 @@ module OpDecoder(
                 end
             `OPCODE_BRANCH: 
                begin
+                halt <= 1'b0;
+                BR_out_id <= 1'b1;
+                JMP_out_id <= 1'b0;
                 ImmSel <= `ImmSel_B;
                 ASel <= `ASel_PC;
                 BSel <= `BSel_IMM;
@@ -126,6 +136,9 @@ module OpDecoder(
                end
             `OPCODE_LOAD:
                begin
+                halt <= 1'b0;
+               BR_out_id <= 1'b0;
+               JMP_out_id <= 1'b0;
                ImmSel <= `ImmSel_I;
                ASel <= `ASel_Reg;
                BSel <= `BSel_IMM;
@@ -135,6 +148,9 @@ module OpDecoder(
                end
             `OPCODE_STORE:
                begin
+                halt <= 1'b0;
+               BR_out_id <= 1'b0;
+               JMP_out_id <= 1'b0;
                ImmSel <= `ImmSel_S;
                ASel <= `ASel_Reg;
                BSel <= `BSel_IMM;
@@ -144,6 +160,9 @@ module OpDecoder(
                end
             `OPCODE_JMP:
                 begin
+                    halt <= 1'b0;
+                    BR_out_id <= 1'b0;
+                    JMP_out_id <= 1'b1;
                     ImmSel <= `ImmSel_J;
                     ASel <= `ASel_PC;
                     BSel <= `BSel_IMM;
@@ -153,6 +172,9 @@ module OpDecoder(
                 end
             `OPCODE_JMP_LINK:
                 begin
+                    halt <= 1'b0;
+                    BR_out_id <= 1'b0;
+                    JMP_out_id <= 1'b1;
                     ImmSel <= `ImmSel_I;
                     ASel <= `ASel_Reg;
                     BSel <= `BSel_IMM;
@@ -162,6 +184,9 @@ module OpDecoder(
                 end
             `OPCODE_AUIPC:
                 begin
+                    halt <= 1'b0;
+                    BR_out_id <= 1'b0;
+                    JMP_out_id <= 1'b0;
                     ImmSel <= `ImmSel_U;
                     ASel <= `ASel_PC;
                     BSel <= `BSel_IMM;
@@ -171,6 +196,9 @@ module OpDecoder(
                 end
             `OPCODE_LUI:
                 begin
+                    halt <= 1'b0;
+                    BR_out_id <= 1'b0;
+                    JMP_out_id <= 1'b0;
                     ImmSel <= `ImmSel_U;
                     ASel <= `ASel_Reg;
                     BSel <= `BSel_IMM;
@@ -187,7 +215,6 @@ module OpDecoder(
 endmodule
 
 module SizeModule(input [2:0] funct3,
-                input [31:0] DataWord,
                 output reg [1:0] MemSize,
                 output reg halt
                 );

@@ -46,83 +46,290 @@ module SingleCycleCPU(halt, clk, rst);
    output halt;
    input clk, rst;
 
-   wire [31:0] PC, InstWord;
-   wire [31:0] DataAddr, StoreData, DataWord;
-   wire [1:0]  MemSize;
-   wire        MemWrEn;
-   
-   wire [4:0]  Rsrc1, Rsrc2, Rdst;
-   wire [31:0] Rdata1, Rdata2;
+wire halt_out_if;
+wire PCSel;
+wire [31:0] PC_out_if;
+wire [31:0] PC4_out_if;
+wire [31:0] instr_out_if;
 
-   wire BrEq, BrLT, PCSel, ASel, BSel, MemRW, RWrEn;
-   wire [2:0] ImmSel;
-   wire [1:0] WBSel;
-   wire [31:0] NPC;
-   wire [6:0]  opcode;
-   wire [6:0]  funct7;
-   wire [2:0]  funct3;
-   wire [4:0] instr;
-   // ALU Inputs
-   wire [31:0] ALUOutput;
-   wire [31:0] ALU_A;
-   wire [31:0] ALU_B;
+IFetch fetchStage(
+   .halt_in_if(1'b0),
+   .PCSel_in_if(PCSel),
+   .pc_br_jmp_target_in_if(32'b0),
+   .halt_out_if(halt_out_if),
+   .pc_out_if(PC_out_if),
+   .pc4_out_if(PC4_out_if),
+   .instr_out_if(instr_out_if),
+   .clk(clk),
+   .rst(rst)
+);
+wire halt_in_id;
+wire [31:0] PC_in_id;
+wire [31:0] instr_in_id;
+wire valid_id;
+IF_ID_Register firstStage(
+   .PC_if(PC_out_if),
+   .Inst_if(instr_out_if),
+   .halt_if(halt_out_if),
+   .valid_if(1'b1),
+   .halt_id(halt_in_id),
+   .PC_id(PC_in_id),
+   .Inst_id(instr_in_id),
+   .valid_id(valid_id),
+   .WEN(1'b0),
+   .CLK(clk),
+   .RST(rst)
+);
+wire [31:0] RWrData;
+wire [4:0] RW_in_id;
+wire [31:0] PC_out_id;
+wire [31:0] Immediate_out_id;
+wire halt_out_id, MemRW_Out_id;
+wire RWrEn_out_id;
+wire [1:0] ALUOp_out_id;
+wire [1:0] ALUSrc_out_id;
+wire [1:0] RegDst_out_id;
+wire [2:0] ImmSel_out_id;
+wire ASel_out_id, BSel_out_id;
+wire [2:0] BranchType_out_id;
+wire JMP_out_id, BR_out_id;
+wire [1:0] MemSize_out_id;
+wire [31:0] Rdata1_out_id;
+wire [31:0] Rdata2_out_id;
+wire [4:0] Rdst_out_id;
+wire [1:0] WBSel_out_id;
+IDecode decoder(
+   .halt_in_id(halt_in_id),
+   .instr_in_id(instr_in_id),
+   .pc_in_id(PC_in_id),
+   .RWrData_in_id(RWrData),
+   .RW_in_id(RW_in_id),
+   .halt_out_id(halt_out_id),
+   .pc_out_id(PC_out_id),
+   .MemRW_out_id(MemRW_Out_id),
+   .RWrEn_out_id(RWrEn_out_id),
+   .ALUOp_out_id(ALUOp_out_id),
+   .ALUSrc_out_id(ALUSrc_out_id),
+   .RegDst_out_id(RegDst_out_id),
+   .ImmSel_out_id(ImmSel_out_id),
+   .ASel_out_id(ASel_out_id),
+   .BSel_out_id(BSel_out_id),
+   .JMP_out_id(JMP_out_id),
+   .BR_out_id(BR_out_id),
+   .MemSize_out_id(MemSize_out_id),
+   .Immediate_out_id(Immediate_out_id),
+   .Rdata1_out_id(Rdata1_out_id),
+   .Rdata2_out_id(Rdata2_out_id),
+   .Rdst_out_id(Rdst_out_id),
+   .WBSel_out_id(WBSel_out_id),
+   .clk(clk),
+   .rst(rst)
+);
 
-   wire [31:0] RWrData;
+wire [31:0] PC_in_ex;
+wire [31:0] Inst_in_ex;
+wire MemRW_in_ex, RWrEn_in_ex;
+wire [1:0] WBSel_in_ex;
+wire [1:0] ALUOp_in_ex;
+wire [1:0] ALUSrc_in_ex;
+wire [4:0] RegDst_in_ex;
+wire [2:0] ImmSel_in_ex;
+wire ASel_in_ex, BSel_in_ex;
+wire [2:0] BranchType_in_ex;
+wire JMP_in_ex, BR_in_ex;
+wire [1:0] MemSize_in_ex;
+wire [31:0] Immediate_in_ex;
+wire [31:0] Rdata1_in_ex;
+wire [31:0] Rdata2_in_ex;
 
-   wire [31:0] LoadExtended;
+wire valid_ex;
+ID_EX_Register secondStage(
+   .PC_id(PC_out_id),
+   .Inst_id(instr_in_id),
+   .MemRW_id(MemRW_Out_id),
+   .RWrEn_id(RWrEn_out_id),
+   .ALUOp_id(ALUOp_out_id),
+   .ALUSrc_id(ALUSrc_out_id),
+   .RegDst_id(RegDst_out_id),
+   .ImmSel_id(ImmSel_out_id),
+   .ASel_id(ASel_out_id),
+   .BSel_id(BSel_out_id),
+   .JMP_id(JMP_out_id),
+   .BR_id(BR_out_id),
+   .WBSel_id(WBSel_out_id),
+   .MemSize_id(MemSize_out_id),
+   .Immediate_id(Immediate_out_id),
+   .Rdata1_id(Rdata1_out_id),
+   .Rdata2_id(Rdata2_out_id),
+   .halt_id(halt_out_id),
+   .valid_id(valid_id),
+   .PC_ex(PC_in_ex),
+   .Inst_ex(Inst_in_ex),
+   .MemRW_ex(MemRW_in_ex),
+   .RWrEn_ex(RWrEn_in_ex),
+   .ALUOp_ex(ALUOp_in_ex),
+   .ALUSrc_ex(ALUSrc_in_ex),
+   .RegDst_ex(RegDst_in_ex),
+   .ImmSel_ex(ImmSel_in_ex),
+   .Rdata1_ex(Rdata1_in_ex),
+   .Rdata2_ex(Rdata2_in_ex),
+   .ASel_ex(ASel_in_ex),
+   .BSel_ex(BSel_in_ex),
+   .JMP_ex(JMP_in_ex),
+   .BR_ex(BR_in_ex),
+   .WBSel_ex(WBSel_in_ex),
+   .Immediate_ex(Immediate_in_ex),
+   .MemSize_ex(MemSize_in_ex),
+   .halt_ex(halt_in_ex),
+   .valid_ex(valid_ex),
+   .WEN(1'b0),
+   .CLK(clk),
+   .RST(rst)
+);
 
-    wire invalidOpcode;
-    wire unalignedPC;
-    wire unalignedAccess;
-    wire invalidSize;
-   SizeModule SM(.funct3(funct3),
-                .DataWord(DataWord),
-                .MemSize(MemSize),
-                .LoadExtended(LoadExtended),
-                .halt(invalidSize)
-                );
-    assign invalidLoadStore = (opcode == `OPCODE_LOAD || opcode == `OPCODE_STORE)? invalidSize : 0;
-   assign halt = invalidOpcode | unalignedPC | unalignedAccess | invalidBranch | invalidALUOp | invalidLoadStore;
-   // System State (everything is neg assert)
-   
-   assign unalignedAccess = (opcode == `OPCODE_LOAD || opcode == `OPCODE_STORE)? 
-                    (((MemSize == `SIZE_HWORD && ALUOutput[0] != 1'b0) || (MemSize == `SIZE_WORD && (ALUOutput[0] != 1'b0 || ALUOutput[0] != 1'b0)))?
-                        1: 0) :0;
-   assign invalidBranch = (opcode == `OPCODE_BRANCH & invalidBranchOp) ? 1 : 0;
-   wire MemRW_Halt_Gated;
-   assign MemRW_Halt_Gated = (halt | MemRW);
-   DataMem DMEM(.Addr(ALUOutput), .Size(MemSize), .DataIn(Rdata2), .DataOut(DataWord), .WEN(MemRW_Halt_Gated), .CLK(clk));
+wire [31:0] Immediate_out_ex;
+wire [31:0] Instr_out_ex;
+wire [31:0] PC_out_ex;
+wire [31:0] ALUOutput_out_ex;
+wire [31:0] Rdata2_out_ex;
+wire halt_out_ex;
+IExecute executeModule(
+   .halt_in_ex(halt_in_ex),
+   .Instr_in_ex(Inst_in_ex),
+   .PC_in_ex(PC_in_ex),
+   .ALUSrc_in_ex(ALUSrc_in_ex),
+   .Rdata1_in_ex(Rdata1_in_ex),
+   .Rdata2_in_ex(Rdata2_in_ex),
+   .ASel_in_ex(ASel_in_ex),
+   .BSel_in_ex(BSel_in_ex),
+   .BR_in_ex(BR_in_ex),
+   .JMP_in_ex(JMP_in_ex),
+   .Immediate_in_ex(Immediate_in_ex),
+   .Instr_out_ex(Instr_out_ex),
+   .PC_out_ex(PC_out_ex),
+   .ALUOutput_out_ex(ALUOutput_out_ex),
+   .Rdata2_out_ex(Rdata2_out_ex),
+   .PCSel_out_ex(PCSel),
+   .halt_out_ex(halt_out_ex),
+   .clk(clk),
+   .rst(rst)
+);
 
+wire [31:0] PC_in_mem;
+wire [31:0] Inst_in_mem;
+wire MemRW_in_mem, RWrEn_in_mem;
+wire JMP_in_mem;
+wire BR_in_mem;
+wire BranchCondTrue_in_mem;
+wire [1:0] WBSel_in_mem;
+wire [1:0] MemSize_in_mem;
+wire [31:0] ALUOutput_in_mem;
+wire [31:0] Immediate_in_mem;
+wire halt_in_mem;
+wire [4:0] Rdst_in_mem;
+wire [31:0] Rdata2_in_mem;
+wire valid_mem;
+EX_MEM_Register thirdStage(
+   .PC_ex(PC_out_ex),
+   .Inst_ex(Instr_out_ex),
+   .MemRW_ex(MemRW_in_ex),
+   .RWrEn_ex(RWrEn_in_ex),
+   .BranchCondTrue_ex(BranchCondTrue_in_ex),
+   .WBSel_ex(WBSel_in_ex),
+   .MemSize_ex(MemSize_in_ex),
+   .ALUOutput_ex(ALUOutput_out_ex),
+   .Immediate_ex(Immediate_out_ex),
+   .Rdst_ex(RegDst_in_ex),
+   .Rdata2_ex(Rdata2_out_ex),
+   .halt_ex(halt_out_ex),
+   .valid_ex(valid_ex),
+   .PC_mem(PC_in_mem),
+   .Inst_mem(Inst_in_mem),
+   .MemRW_mem(MemRW_in_mem),
+   .RWrEn_mem(RWrEn_in_mem),
+   .BranchCondTrue_mem(BranchCondTrue_in_mem),
+   .WBSel_mem(WBSel_in_mem),
+   .MemSize_mem(MemSize_in_mem),
+   .ALUoutput_mem(ALUOutput_in_mem),
+   .Immediate_mem(Immediate_in_mem),
+   .Rdst_mem(Rdst_in_mem),
+   .Rdata2_mem(Rdata2_in_mem),
+   .halt_mem(halt_in_mem),
+   .valid_mem(valid_mem),
+   .WEN(1'b0),
+   .CLK(clk),
+   .RST(rst)
+);
 
-   // Write Back signal generation
-   assign RWrData = (WBSel == `WBSel_ALU) ? ALUOutput : (WBSel == `WBSel_PC4) ? PC + 4 : (WBSel == `WBSel_Mem) ? LoadExtended : Imm;
+wire [31:0] LoadExtended_out_mem;
+wire halt_out_mem;
+IMem memoryUnit(
+   .halt_in_mem(halt_in_mem),
+   .PC_in_mem(PC_in_mem),
+   .Instr_in_mem(Inst_in_mem),
+   .ALUOutput_in_mem(ALUOutput_in_mem),
+   .MemSize_in_mem(MemSize_in_mem),
+   .MemWrEn_in_mem(MemRW_in_mem),
+   .Rdata2_in_mem(Rdata2_in_mem),
+   .LoadExtended_out_mem(LoadExtended_out_mem),
+   .halt_out_mem(halt_out_mem)
+);
 
+wire [31:0] PC_in_wb;
+wire [31:0] Inst_in_wb;
+wire [31:0] ALUOutput_in_wb;
+wire [31:0] Immediate_in_wb;
+wire [31:0] LoadExtended_in_wb;
+
+wire RegWrite_mem;
+wire MemToReg_mem;
+wire [1:0] WBSel_in_wb;
+wire [4:0] Rdst_in_wb;
+wire valid_wb;
+MEM_WB_Register fourthStage(
+   .PC_mem(PC_in_mem),
+   .Inst_mem(Inst_in_mem),
+   .MemRW_mem(MemRW_in_mem),
+   .RWrEn_mem(RWrEn_in_mem),
+   .WBSel_mem(WBSel_in_mem),
+   .LoadExtended_mem(LoadExtended_out_mem),
+   .Immediate_mem(Immediate_in_mem),
+   .ALUOutput_mem(ALUOutput_in_mem),
+   .Rdst_mem(Rdst_in_mem),
+   .halt_mem(halt_out_mem),
+   .valid_mem(valid_mem),
+   .PC_wb(PC_in_wb),
+   .Inst_wb(Inst_in_wb),
+   .MemRW_wb(MemRW_in_wb),
+   .RWrEn_wb(RWrEn_in_wb),
+   .WBSel_wb(WBSel_in_wb),
+   .LoadExtended_wb(LoadExtended_in_wb),
+   .Immediate_wb(Immediate_in_wb),
+   .ALUOutput_wb(ALUOutput_in_wb),
+   .Rdst_wb(Rdst_in_wb),
+   .halt_wb(halt_in_wb),
+   .valid_wb(valid_wb),
+   .WEN(1'b0),
+   .CLK(clk),
+   .RST(rst)
+);
+
+IWB writebackModule(
+   .PC_in_wb(PC_in_wb),
+   .Inst_in_wb(Inst_in_wb),
+   .WBSel_in_wb(WBSel_in_wb),
+   .LoadExtended_in_wb(LoadExtended_in_wb),
+   .Immediate_in_wb(Immediate_in_wb),
+   .ALUOutput_in_wb(ALUOutput_in_wb),
+   .Rdst_in_wb(Rdst_in_wb),
+   .halt_in_wb(halt_in_wb),
+   .Rw_out_wb(RW_in_id),
+   .Di_out_wb(RWrData),
+   .WEN(1'b0),
+   .CLK(clk),
+   .RST(rst)
+);
+
+assign halt = halt_in_wb & valid_wb;
 
 endmodule // SingleCycleCPU
-
-module SizeModule(input [2:0] funct3,
-                input [31:0] DataWord,
-                output reg [1:0] MemSize,
-                output reg [31:0] LoadExtended,
-                output reg halt
-                );
-
-always @(*) begin
-    halt <= 1'b0;
-    case (funct3)
-        3'b000: LoadExtended = {{24{DataWord[7]}}, DataWord[7:0]};
-        3'b001: LoadExtended = {{16{DataWord[15]}}, {DataWord[15:0]} };
-        3'b010: LoadExtended = DataWord;
-        3'b100: LoadExtended = {{24{1'b0}}, {DataWord[7:0]} };
-        3'b101: LoadExtended = {{16{1'b0}}, {DataWord[15:0]} };
-        default: begin
-            halt <= 1'b1;
-            LoadExtended = {32{1'b0}};
-        end
-
-    endcase
-   end
-endmodule
-
-
-

@@ -1,27 +1,35 @@
 module IExecute(
+    input halt_in_ex,
     input [31:0] Instr_in_ex,
     input [31:0] PC_in_ex,
     input [1:0] ALUSrc_in_ex,
-    input [4:0] Rdata1_in_ex,
-    input [4:0] Rdata2_in_ex,
+    input [31:0] Rdata1_in_ex,
+    input [31:0] Rdata2_in_ex,
     input ASel_in_ex,
     input BSel_in_ex,
     input BR_in_ex,
     input JMP_in_ex,
-    input [31:0 ]Immediate_in_ex,
+    input [31:0] Immediate_in_ex,
+    output [31:0] Instr_out_ex,
+    output [31:0] PC_out_ex,
+    output [31:0] ALUOutput_out_ex,
+    output [31:0] Rdata2_out_ex,
+    output PCSel_out_ex,
+    output halt_out_ex,
     input clk,
-    input rst,
-);
+    input rst);
 
 wire BranchTaken;
+wire invalidBranch;
 wire invalidBranchOp;
 BranchComparison BC(
-    .Rdata1(Rdata1),
-    .Rdata2(Rdata2),
+    .Rdata1(Rdata1_in_ex),
+    .Rdata2(Rdata2_in_ex),
     .funct3(funct3),
     .BR(BranchTaken),
     .halt(invalidBranchOp)
     );
+assign invalidBranch = (BR_in_ex & invalidBranchOp) ? 1 : 0;
 
 wire [2:0]  funct3;
 assign funct3 = Instr_in_ex[14:12];
@@ -30,15 +38,19 @@ assign funct7 = Instr_in_ex[31:25];
 wire [6:0]  opcode;
 assign opcode = Instr_in_ex[6:0];
 
-
+assign PCSel_out_ex = ((BR_in_ex == 1'b1 && BranchTaken == 1'b1) || JMP_in_ex) ? `PCSel_ALU : `PCSel_4;
 wire [31:0] ALU_A;
 wire [31:0] ALU_B;
 wire [31:0] ALUOutput;
 wire invalidALUOp;
 assign ALU_A = (ASel_in_ex == 1'b0) ? Rdata1_in_ex : PC_in_ex; 
 assign ALU_B = (BSel_in_ex == 1'b0) ? Rdata2_in_ex : Immediate_in_ex;
-ExecutionUnit EU(.out(ALUOutput), .opA(ALU_A), .opB(ALU_B), .func(funct3), .auxFunc(funct7), .opcode(opcode), .halt(invalidALUOp));
+ExecutionUnit EU(.out(ALUOutput_out_ex), .opA(ALU_A), .opB(ALU_B), .func(funct3), .auxFunc(funct7), .opcode(opcode), .halt(invalidALUOp));
 
+assign Rdata2_out_ex = Rdata2_in_ex;
+assign PC_out_ex = PC_in_ex;
+assign Instr_out_ex = Instr_in_ex;
+assign halt_out_ex = halt_in_ex | invalidALUOp | invalidBranch;
 endmodule // IExecute
 
 // Module which determines whether a branch should be taken
