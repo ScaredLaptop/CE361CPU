@@ -1,0 +1,112 @@
+# branch test suite
+# x1 = 1
+# x2 = 2
+# x3 = 2
+# x4 = -1
+# x5 = 0xFF
+# x6 = -1
+
+// 0x0
+HexBigToLilEndian("0x00209863"), # bne x1, x2, 16
+# 1 != 2
+HexBigToLilEndian("0x00000f37"), # lui x30, 0
+HexBigToLilEndian("0x00000f37"), # lui x30, 0
+HexBigToLilEndian("0x00000f37"), # lui x30, 0
+# SKIP UNTIL HERE
+HexBigToLilEndian("0x001f8f93"), # addi, x31, x31, 1
+
+// 0x014
+HexBigToLilEndian("0x00524863"), # blt x4, x5, 16
+# -1 < 0xFF
+HexBigToLilEndian("0x00000f37"), # lui x30, 0
+HexBigToLilEndian("0x00000f37"), # lui x30, 0
+HexBigToLilEndian("0x00000f37"), # lui x30, 0
+# SKIP UNTIL HERE
+HexBigToLilEndian("0x001f8f93"), # addi, x31, x31, 1
+
+// 0x028
+HexBigToLilEndian("0x00620863"), # beq x4, x6, 16
+# -1 == -1
+HexBigToLilEndian("0x00000f37"), # lui x30, 0
+HexBigToLilEndian("0x00000f37"), # lui x30, 0
+HexBigToLilEndian("0x00000f37"), # lui x30, 0
+# SKIP UNTIL HERE
+HexBigToLilEndian("0x001f8f93"), # addi, x31, x31, 1
+
+// 0x03C
+HexBigToLilEndian("0x00115863"), # bge x2, x1, 16
+# 2 >= 1
+HexBigToLilEndian("0x00000f37"), # lui x30, 0
+HexBigToLilEndian("0x00000f37"), # lui x30, 0
+HexBigToLilEndian("0x00000f37"), # lui x30, 0
+# SKIP UNTIL HERE
+HexBigToLilEndian("0x001f8f93"), # addi, x31, x31, 1
+
+// 0x50
+HexBigToLilEndian("0x00625863"), # bge x4, x6, 16
+#  -1 >= -1
+HexBigToLilEndian("0x00000f37"), # lui x30, 0
+HexBigToLilEndian("0x00000f37"), # lui x30, 0
+HexBigToLilEndian("0x00000f37"), # lui x30, 0
+# SKIP UNTIL HERE
+HexBigToLilEndian("0x001f8f93"), # addi, x31, x31, 1
+
+// 0x64
+HexBigToLilEndian("0x00315863"), # bge x2, x3, 16
+# 2 >= 2
+HexBigToLilEndian("0x00000f37"), # lui x30, 0
+HexBigToLilEndian("0x00000f37"), # lui x30, 0
+HexBigToLilEndian("0x00000f37"), # lui x30, 0
+# SKIP UNTIL HERE
+HexBigToLilEndian("0x001f8f93"), # addi, x31, x31, 1
+
+// 0x78
+HexBigToLilEndian("0x0062e863"), # bltu x5, x6, 16
+# FF < FFFFFFFF
+HexBigToLilEndian("0x00000f37"), # lui x30, 0
+HexBigToLilEndian("0x00000f37"), # lui x30, 0
+HexBigToLilEndian("0x00000f37"), # lui x30, 0
+# SKIP UNTIL HERE
+HexBigToLilEndian("0x001f8f93"), # addi, x31, x31, 1
+
+// 0x8c
+HexBigToLilEndian("0x00516863"), # bltu x2, x5, 16
+# 2 < FF
+HexBigToLilEndian("0x00000f37"), # lui x30, 0
+HexBigToLilEndian("0x00000f37"), # lui x30, 0
+HexBigToLilEndian("0x00000f37"), # lui x30, 0
+# SKIP UNTIL HERE
+HexBigToLilEndian("0x001f8f93"), # addi, x31, x31, 1
+
+// 0xa0
+HexBigToLilEndian("0x0022f863"), # bgeu x5, x2, 16
+# FF >= 2
+HexBigToLilEndian("0x00000f37"), # lui x30, 0
+HexBigToLilEndian("0x00000f37"), # lui x30, 0
+HexBigToLilEndian("0x00000f37"), # lui x30, 0
+# SKIP UNTIL HERE
+HexBigToLilEndian("0x001f8f93"), # addi, x31, x31, 1
+
+// 0xb4
+HexBigToLilEndian("0x00527863"), # bgeu x4, x5, 16
+# FFFFFFFF < FF
+HexBigToLilEndian("0x00000f37"), # lui x30, 0
+HexBigToLilEndian("0x00000f37"), # lui x30, 0
+HexBigToLilEndian("0x00000f37"), # lui x30, 0
+# SKIP UNTIL HERE
+HexBigToLilEndian("0x001f8f93"), # addi, x31, x31, 1
+
+//0xc8
+HexBigToLilEndian("0x0020c863"), # blt x1, x2, 16
+# 1 < 2
+HexBigToLilEndian("0x00000f37"), # lui x30, 0
+HexBigToLilEndian("0x00000f37"), # lui x30, 0
+HexBigToLilEndian("0x00000f37"), # lui x30, 0
+# SKIP UNTIL HERE
+HexBigToLilEndian("0x001f8f93"), # addi, x31, x31, 1
+"00\n00\n00\n00",
+"00\n00\n00\n00",
+"00\n00\n00\n00",
+"00\n00\n00\n00",
+"00\n00\n00\n00",
+"00\n00\n00\n00"
