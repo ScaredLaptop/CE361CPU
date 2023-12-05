@@ -14,5 +14,5 @@ module IWB(
     input RST);
 
 assign Di_out_wb = (WBSel_in_wb == `WBSel_ALU) ? ALUOutput_in_wb : (WBSel_in_wb == `WBSel_PC4) ? PC_in_wb + 4 : (WBSel_in_wb == `WBSel_Mem) ? LoadExtended_in_wb : Immediate_in_wb;
-assign Rw_out_wb = Rdst_in_wb;
+assign Rw_out_wb = (halt_in_wb)? 0 : Rdst_in_wb;
 endmodule

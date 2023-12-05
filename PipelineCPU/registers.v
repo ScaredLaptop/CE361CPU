@@ -7,6 +7,7 @@ module IF_ID_Register(
     output reg halt_id,
     output reg [31:0] PC_id,
     output reg [31:0] Inst_id,
+    input stall,
     input squash,
     input WEN, 
     input CLK, 
@@ -17,6 +18,8 @@ module IF_ID_Register(
             PC_id <= 0;
             Inst_id <= 32'h00000013;
             valid_id <= 1'b1;
+        end else if (stall) begin
+            // Latch values
         end else if (!RST || (valid_if == 1'b0)) begin
             halt_id <= 0;
             PC_id <= 0;
@@ -48,7 +51,10 @@ module ID_EX_Register(
     input [1:0] MemSize_id,
     input [31:0] Rdata1_id,
     input [31:0] Rdata2_id,
+    input [4:0] Rsrc1_id,
+    input [4:0] Rsrc2_id,
     input halt_id,
+    input stall,
     input valid_id,
     output reg valid_ex,
     output reg [31:0] PC_ex,
@@ -68,6 +74,8 @@ module ID_EX_Register(
     output reg [1:0] WBSel_ex,
     output reg [31:0] Immediate_ex,
     output reg [1:0] MemSize_ex,
+    output reg [4:0] Rsrc1_ex,
+    output reg [4:0] Rsrc2_ex,
     output reg halt_ex,
     input squash,
     input WEN, 
@@ -94,7 +102,11 @@ module ID_EX_Register(
             MemSize_ex <= 0;
             Rdata1_ex <= 0;
             Rdata2_ex <= 0;
+            Rsrc1_ex <= 0;
+            Rsrc2_ex <= 0;
             halt_ex <= 0;
+        end else if (stall) begin
+            // latch values
         end else if (!RST || (valid_id == 1'b0)) begin
             valid_ex <= 0;
             PC_ex <= 0;
@@ -114,6 +126,8 @@ module ID_EX_Register(
             MemSize_ex <= 0;
             Rdata1_ex <= 0;
             Rdata2_ex <= 0;
+            Rsrc1_ex <= 0;
+            Rsrc2_ex <= 0;
             halt_ex <= 0;
         end else if (!WEN) begin
             valid_ex <= valid_id;
@@ -134,6 +148,8 @@ module ID_EX_Register(
             MemSize_ex <= MemSize_id;
             Rdata1_ex <= Rdata1_id;
             Rdata2_ex <= Rdata2_id;
+            Rsrc1_ex <= Rsrc1_id;
+            Rsrc2_ex <= Rsrc2_id;
             halt_ex <= halt_id && valid_id;
         end
     end
@@ -167,6 +183,7 @@ module EX_MEM_Register(
     output reg [4:0] Rdst_mem,
     output reg [31:0] Rdata2_mem,
     output reg halt_mem,
+    input squash,
     input WEN, 
     input CLK, 
     input RST);
@@ -185,6 +202,21 @@ module EX_MEM_Register(
             Rdata2_mem <= 0;
             Immediate_mem <= 0;
             halt_mem <= 0;
+        end 
+        else if (squash) begin
+            valid_mem <= 1;
+            PC_mem <= PC_ex;
+            Inst_mem <= 32'h00000013;
+            MemRW_mem <= `MemRW_Read;
+            RWrEn_mem <= `RWrEn_Disable;
+            BranchCondTrue_mem <= 1'b0;
+            WBSel_mem <= `WBSel_PC4;
+            MemSize_mem <= `SIZE_WORD;
+            ALUoutput_mem <= 32'h00000000;
+            Immediate_mem <= 32'h00000000;
+            Rdst_mem <= 5'b00000;
+            Rdata2_mem <= 32'h00000000;
+            halt_mem <= 1'b0;
         end else if (!WEN) begin
             valid_mem <= valid_ex;
             PC_mem <= PC_ex;

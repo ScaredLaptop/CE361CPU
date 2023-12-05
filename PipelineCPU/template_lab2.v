@@ -46,6 +46,25 @@ module SingleCycleCPU(halt, clk, rst);
    output halt;
    input clk, rst;
 
+wire stall_in_ex;
+wire stall_in_mem;
+HazardDetect hazardDetect(
+   .Rsrc1_out_id(Rsrc1_out_id),
+   .Rsrc2_out_id(Rsrc2_out_id),
+   .Rsrc1_in_ex(Rsrc1_in_ex),
+   .Rsrc2_in_ex(Rsrc2_in_ex),
+   .Rdst_in_ex(Rdst_in_ex),
+   .Rdst_in_mem(Rdst_in_mem),
+   .Rdst_in_wb(Rdst_in_wb),
+   .RWrEn_in_ex(RWrEn_in_ex),
+   .RWrEn_in_mem(RWrEn_in_mem),
+   .stall_in_ex(stall_in_ex),
+   .stall_in_mem(stall_in_mem));
+wire stall;
+assign stall = stall_in_ex | stall_in_mem;
+
+
+
 wire halt_out_if;
 wire PCSel;
 wire [31:0] PC_out_if;
@@ -62,6 +81,7 @@ IFetch fetchStage(
    .pc4_out_if(PC4_out_if),
    .instr_out_if(instr_out_if),
    .clk(clk),
+   .stall(stall),
    .rst(rst)
 );
 wire halt_in_id;
@@ -78,6 +98,7 @@ IF_ID_Register firstStage(
    .Inst_id(instr_in_id),
    .valid_id(valid_id),
    .squash(squash_with_nops),
+   .stall(stall),
    .WEN(1'b0),
    .CLK(clk),
    .RST(rst)
@@ -99,6 +120,8 @@ wire [31:0] Rdata1_out_id;
 wire [31:0] Rdata2_out_id;
 wire [4:0] Rdst_out_id;
 wire [1:0] WBSel_out_id;
+wire [4:0] Rsrc1_out_id;
+wire [4:0] Rsrc2_out_id;
 IDecode decoder(
    .halt_in_id(halt_in_id),
    .instr_in_id(instr_in_id),
@@ -107,7 +130,7 @@ IDecode decoder(
    .RWrEn_in_wb(RWrEn_in_wb),
    .RW_in_wb(Rdst_in_wb),
    .halt_out_id(halt_out_id),
-   .pc_out_id(PC_in_id),
+   .pc_out_id(PC_out_id),
    .MemRW_out_id(MemRW_Out_id),
    .RWrEn_out_id(RWrEn_out_id),
    .ALUOp_out_id(ALUOp_out_id),
@@ -122,6 +145,8 @@ IDecode decoder(
    .Rdata1_out_id(Rdata1_out_id),
    .Rdata2_out_id(Rdata2_out_id),
    .Rdst_out_id(Rdst_out_id),
+   .Rsrc1_out_id(Rsrc1_out_id),  
+   .Rsrc2_out_id(Rsrc2_out_id),
    .WBSel_out_id(WBSel_out_id),
    .clk(clk),
    .rst(rst)
@@ -142,7 +167,8 @@ wire [1:0] MemSize_in_ex;
 wire [31:0] Immediate_in_ex;
 wire [31:0] Rdata1_in_ex;
 wire [31:0] Rdata2_in_ex;
-
+wire [4:0] Rsrc1_in_ex;
+wire [4:0] Rsrc2_in_ex;
 wire valid_ex;
 ID_EX_Register secondStage(
    .PC_id(PC_in_id),
@@ -162,6 +188,8 @@ ID_EX_Register secondStage(
    .Immediate_id(Immediate_out_id),
    .Rdata1_id(Rdata1_out_id),
    .Rdata2_id(Rdata2_out_id),
+   .Rsrc1_id(Rsrc1_out_id),
+   .Rsrc2_id(Rsrc2_out_id),
    .halt_id(halt_out_id),
    .valid_id(valid_id),
    .PC_ex(PC_in_ex),
@@ -181,9 +209,12 @@ ID_EX_Register secondStage(
    .WBSel_ex(WBSel_in_ex),
    .Immediate_ex(Immediate_in_ex),
    .MemSize_ex(MemSize_in_ex),
+   .Rsrc1_ex(Rsrc1_in_ex),
+   .Rsrc2_ex(Rsrc2_in_ex),
    .halt_ex(halt_in_ex),
    .valid_ex(valid_ex),
-   .squash(squash_with_nops),
+   .squash(squash_with_nops | stall_in_ex),
+   .stall(stall_in_mem & !stall_in_ex),
    .WEN(1'b0),
    .CLK(clk),
    .RST(rst)
@@ -259,6 +290,7 @@ EX_MEM_Register thirdStage(
    .Rdata2_mem(Rdata2_in_mem),
    .halt_mem(halt_in_mem),
    .valid_mem(valid_mem),
+   .squash(stall_in_mem & !stall_in_ex),
    .WEN(1'b0),
    .CLK(clk),
    .RST(rst)
@@ -339,5 +371,30 @@ assign halt = halt_in_wb & valid_wb;
 
 endmodule // SingleCycleCPU
 
-module HazardDetect();
+module HazardDetect(
+   input [4:0] Rsrc1_out_id,
+   input [4:0] Rsrc2_out_id,
+   input [4:0] Rsrc1_in_ex,
+   input [4:0] Rsrc2_in_ex,
+   input [4:0] Rdst_in_ex,
+   input [4:0] Rdst_in_mem,
+   input [4:0] Rdst_in_wb,
+   input RWrEn_in_ex,
+   input RWrEn_in_mem,
+   output reg stall_in_ex,
+   output reg stall_in_mem);
+   always @(*) begin
+      if ((Rsrc1_out_id == Rdst_in_ex) & (!RWrEn_in_ex) & (Rdst_in_ex != 0))
+         stall_in_ex <= 1;
+      else if ((Rsrc2_out_id == Rdst_in_ex) & (!RWrEn_in_ex) & (Rdst_in_ex != 0))
+         stall_in_ex <= 1;
+      else
+         stall_in_ex <= 0;
+      if ((Rsrc1_out_id == Rdst_in_mem) & (!RWrEn_in_mem) & (Rdst_in_mem != 0))
+         stall_in_mem <= 1;
+      else if ((Rsrc2_out_id == Rdst_in_mem) & (!RWrEn_in_mem) & (Rdst_in_mem != 0))
+         stall_in_mem <= 1;
+      else
+         stall_in_mem <= 0;
+	end
 endmodule

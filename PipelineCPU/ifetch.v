@@ -7,10 +7,11 @@ module IFetch(
     output [31:0] pc4_out_if,
     output [31:0] instr_out_if,
     input clk,
+    input stall,
     input rst);
 wire [31:0] NPC;
 wire [31:0] PC;
-Reg PC_REG(.Din(NPC), .Qout(PC), .WEN(1'b0), .CLK(clk), .RST(rst));
+Reg PC_REG(.Din(NPC), .Qout(PC), .WEN(stall), .CLK(clk), .RST(rst));
 assign pc_out_if = PC;
 assign pc4_out_if = PC + 4;
 InstMem IMEM(.Addr(PC), .Size(`SIZE_WORD), .DataOut(instr_out_if), .CLK(clk));

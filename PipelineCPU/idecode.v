@@ -22,6 +22,8 @@ module IDecode(
     output [31:0] Rdata2_out_id,
     output [4:0] Rdst_out_id,
     output [1:0] WBSel_out_id,
+    output [4:0] Rsrc1_out_id,
+    output [4:0] Rsrc2_out_id,
     input clk,
     input rst);
 
@@ -35,7 +37,8 @@ assign Rdst = instr_in_id[11:7];
 assign Rsrc1 = instr_in_id[19:15]; 
 assign Rsrc2 = instr_in_id[24:20];
 assign funct3 = instr_in_id[14:12];
-assign funct7 = instr_in_id[31:25];  
+assign funct7 = instr_in_id[31:25]; 
+ 
 // Generate signals
 wire invalidOpcode;
 OpDecoder decoder(
@@ -75,11 +78,14 @@ assign halt = invalidOpcode | (((opcode == `OPCODE_STORE || opcode == `OPCODE_LO
 assign RWrEn_Halt_Gated = (RWrEn_in_wb); // TODO: Halt Gate
 RegFile RF(.AddrA(Rsrc1), .DataOutA(Rdata1_out_id), 
         .AddrB(Rsrc2), .DataOutB(Rdata2_out_id), 
-        .AddrW(RW_in_wb), .DataInW(RWrData_in_id), .WenW(RWrEn_Halt_Gated), .CLK(clk));
+        .AddrW(RW_in_wb), .DataInW(RWrData_in_id), .WenW(RWrEn_Halt_Gated), .CLK(~clk));
 
 // Propogate and assign halt
 assign halt_out_id = halt_in_id | invalidOpcode | (((opcode == `OPCODE_STORE || opcode == `OPCODE_LOAD) && invalidOpSize)? 1 : 0);
 assign Rdst_out_id = Rdst;
+assign pc_out_id = pc_in_id;
+assign Rsrc1_out_id = Rsrc1;
+assign Rsrc2_out_id = Rsrc2;
 endmodule // IDecode
 
 module OpDecoder(
