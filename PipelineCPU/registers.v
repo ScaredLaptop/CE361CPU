@@ -147,7 +147,7 @@ module EX_MEM_Register(
             valid_mem <= 0;
             PC_mem <= 0;
             Inst_mem <= 0;
-            MemRW_mem <= 0;
+            MemRW_mem <= 1;
             RWrEn_mem <= 0;
             BranchCondTrue_mem <= 0;
             WBSel_mem <= 0;

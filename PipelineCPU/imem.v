@@ -6,6 +6,8 @@ module IMem(
     input [1:0] MemSize_in_mem,
     input MemWrEn_in_mem,
     input [31:0] Rdata2_in_mem,
+    input clk,
+    input rst,
     output [31:0] LoadExtended_out_mem,
     output halt_out_mem);
 
@@ -19,10 +21,11 @@ module IMem(
     wire [31:0] DataWord;
     wire [2:0] funct3;
     assign funct3 = Instr_in_mem[14:12];
-    assign halt_out_mem = halt_in_mem | unalignedAccess;
+    assign halt_out_mem = halt_in_mem | unalignedAccess | (opcode == `OPCODE_LOAD && invalidLoadExtend);
     assign MemRW_Halt_Gated = (halt_out_mem | MemWrEn_in_mem);
     DataMem DMEM(.Addr(ALUOutput_in_mem), .Size(MemSize_in_mem), .DataIn(Rdata2_in_mem), .DataOut(DataWord), .WEN(MemRW_Halt_Gated), .CLK(clk));
-    LoadExtend LoadExtender(.DataWord(DataWord), .funct3(funct3), .LoadExtended(LoadExtended_out_mem), .halt(halt_out_mem));
+    wire invalidLoadExtend;
+    LoadExtend LoadExtender(.DataWord(DataWord), .funct3(funct3), .LoadExtended(LoadExtended_out_mem), .halt(invalidLoadExtend));
 endmodule
 
 module LoadExtend(

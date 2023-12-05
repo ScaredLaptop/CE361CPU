@@ -271,7 +271,9 @@ IMem memoryUnit(
    .MemWrEn_in_mem(MemRW_in_mem),
    .Rdata2_in_mem(Rdata2_in_mem),
    .LoadExtended_out_mem(LoadExtended_out_mem),
-   .halt_out_mem(halt_out_mem)
+   .halt_out_mem(halt_out_mem),
+   .clk(clk),
+   .rst(rst)
 );
 
 wire [31:0] PC_in_wb;
