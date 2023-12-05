@@ -38,7 +38,7 @@
 `define BGE 3'b101
 `define BLTU 3'b110
 `define BGEU 3'b111
-// Template for Northwestern - CompEng 361 - Lab2
+// Template for Northwestern - CompEng 361 - Lab3
 // Groupname: SingleRussleCPU
 // NetIDs: ljp0624, swp8132
 // Datapath used from https://inst.eecs.berkeley.edu/~cs61c/su21/pdfs/lectures/fa20-trimmed/lec20_lec21.pdf
