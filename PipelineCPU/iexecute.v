@@ -16,9 +16,10 @@ module IExecute(
     output [31:0] Rdata2_out_ex,
     output PCSel_out_ex,
     output halt_out_ex,
+    output send_nops,
     input clk,
     input rst);
-
+assign send_nops = (JMP_in_ex || ((BR_in_ex==1'b1) && (BranchTaken==1'b1))) ? 1 : 0;
 wire BranchTaken;
 wire invalidBranch;
 wire invalidBranchOp;

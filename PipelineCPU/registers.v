@@ -7,11 +7,17 @@ module IF_ID_Register(
     output reg halt_id,
     output reg [31:0] PC_id,
     output reg [31:0] Inst_id,
+    input squash,
     input WEN, 
     input CLK, 
     input RST);
     always @ (negedge CLK or negedge RST)
-        if (!RST || (valid_if == 1'b0)) begin
+        if(squash) begin
+            halt_id <= 0;
+            PC_id <= 0;
+            Inst_id <= 32'h00000013;
+            valid_id <= 1'b1;
+        end else if (!RST || (valid_if == 1'b0)) begin
             halt_id <= 0;
             PC_id <= 0;
             Inst_id <= 0;
@@ -63,12 +69,33 @@ module ID_EX_Register(
     output reg [31:0] Immediate_ex,
     output reg [1:0] MemSize_ex,
     output reg halt_ex,
+    input squash,
     input WEN, 
     input CLK, 
     input RST);
     wire [2:0] test;
-    always @ (negedge CLK or negedge RST)
-        if (!RST || (valid_id == 1'b0)) begin
+    always @ (negedge CLK or negedge RST) begin
+        if(squash) begin
+            valid_ex <= 0;
+            PC_ex <= 0;
+            Inst_ex <= 32'h00000013;
+            MemRW_ex <= 1;
+            RWrEn_ex <= 1;
+            ALUOp_ex <= 0;
+            ALUSrc_ex <= 0;
+            RegDst_ex <= 0;
+            ImmSel_ex <= 0;
+            ASel_ex <= 0;
+            BSel_ex <= 0;
+            JMP_ex <= 0;
+            BR_ex <= 0;
+            WBSel_ex <= 0;
+            Immediate_ex <= 0;
+            MemSize_ex <= 0;
+            Rdata1_ex <= 0;
+            Rdata2_ex <= 0;
+            halt_ex <= 0;
+        end else if (!RST || (valid_id == 1'b0)) begin
             valid_ex <= 0;
             PC_ex <= 0;
             Inst_ex <= 0;
@@ -109,6 +136,7 @@ module ID_EX_Register(
             Rdata2_ex <= Rdata2_id;
             halt_ex <= halt_id && valid_id;
         end
+    end
 endmodule // ID_EX_Register
 
 module EX_MEM_Register(

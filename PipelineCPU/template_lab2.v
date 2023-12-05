@@ -52,10 +52,11 @@ wire [31:0] PC_out_if;
 wire [31:0] PC4_out_if;
 wire [31:0] instr_out_if;
 wire [31:0] DONE;
+wire squash_with_nops;
 IFetch fetchStage(
    .halt_in_if(1'b0),
    .PCSel_in_if(PCSel),
-   .pc_br_jmp_target_in_if(32'b0),
+   .pc_br_jmp_target_in_if(ALUOutput_out_ex),
    .halt_out_if(halt_out_if),
    .pc_out_if(PC_out_if),
    .pc4_out_if(PC4_out_if),
@@ -76,6 +77,7 @@ IF_ID_Register firstStage(
    .PC_id(PC_in_id),
    .Inst_id(instr_in_id),
    .valid_id(valid_id),
+   .squash(squash_with_nops),
    .WEN(1'b0),
    .CLK(clk),
    .RST(rst)
@@ -181,6 +183,7 @@ ID_EX_Register secondStage(
    .MemSize_ex(MemSize_in_ex),
    .halt_ex(halt_in_ex),
    .valid_ex(valid_ex),
+   .squash(squash_with_nops),
    .WEN(1'b0),
    .CLK(clk),
    .RST(rst)
@@ -210,6 +213,7 @@ IExecute executeModule(
    .Rdata2_out_ex(Rdata2_out_ex),
    .PCSel_out_ex(PCSel),
    .halt_out_ex(halt_out_ex),
+   .send_nops(squash_with_nops),
    .clk(clk),
    .rst(rst)
 );
