@@ -107,7 +107,7 @@ IDecode decoder(
    .RWrEn_in_wb(RWrEn_in_wb),
    .RW_in_wb(Rdst_in_wb),
    .halt_out_id(halt_out_id),
-   .pc_out_id(PC_out_id),
+   .pc_out_id(PC_in_id),
    .MemRW_out_id(MemRW_Out_id),
    .RWrEn_out_id(RWrEn_out_id),
    .ALUOp_out_id(ALUOp_out_id),
@@ -145,7 +145,7 @@ wire [31:0] Rdata2_in_ex;
 
 wire valid_ex;
 ID_EX_Register secondStage(
-   .PC_id(PC_out_id),
+   .PC_id(PC_in_id),
    .Inst_id(instr_in_id),
    .MemRW_id(MemRW_Out_id),
    .RWrEn_id(RWrEn_out_id),
